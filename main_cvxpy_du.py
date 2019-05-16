@@ -35,14 +35,14 @@ pref = 7.0
 vref = 0
 xref = np.array([pref, vref]) # reference state
 uref = 0      # reference input
-un1 =  np.array([0.0])  # input at time step negative one - used to penalize the first delta 0. Could be the same as uref.
+uinit =  np.array([0.0])  # input at time step negative one - used to penalize the first delta 0. Could be the same as uref.
 
 # Constraints
 xmin = np.array([-100.0, -100.0])
 xmax = np.array([100.0,   100.0])
 
-umin = np.array([-10.0])
-umax = np.array([10.0])
+umin = np.array([-1.5])
+umax = np.array([1.5])
 
 Dumin = np.array([-2e-1])
 Dumax = np.array([2e-1])
@@ -63,7 +63,7 @@ Np = 20
 u = Variable((nu, Np))
 x = Variable((nx, Np + 1))
 x_init = Parameter(nx)
-uold = Parameter(nu)
+uminus1 = Parameter(nu) # input at time instant negative one (from previous MPC window or uinit in the first MPC window)
 
 objective = 0
 constraints = [x[:,0] == x_init]
@@ -72,8 +72,8 @@ for k in range(Np):
     if k > 0:
         objective += quad_form(u[:,k] - u[:,k-1], QDu)               # \sum_{k=1}^{N_p-1} (uk - u_k-1)'QDu(uk - u_k-1)
     else: # at k = 0...
-        if uold is not np.nan:  # if there is an uold to be considered
-            objective += quad_form(u[:,k] - uold, QDu) # ... penalize the variation of u0 with respect to uold
+        if uminus1 is not np.nan:  # if there is an uold to be considered
+            objective += quad_form(u[:,k] - uminus1, QDu) # ... penalize the variation of u0 with respect to uold
 
     constraints += [x[:,k+1] == Ad*x[:,k] + Bd*u[:,k]]               # model dynamics constraints
 
@@ -83,8 +83,8 @@ for k in range(Np):
     if k > 0:
         constraints += [Dumin <= u[:,k] - u[:,k-1] , u[:,k] - u[:,k-1] <= Dumax]
     else: # at k = 0...
-        if uold is not np.nan:  # if there is an uold to be considered
-            constraints += [Dumin <= u[:,k] - uold , u[:,k] - uold <= Dumax]
+        if uminus1 is not np.nan:  # if there is an uold to be considered
+            constraints += [Dumin <= u[:,k] - uminus1 , u[:, k] - uminus1 <= Dumax]
 objective += quad_form(x[:, Np] - xref, QxN)                          # add final cost for xN
 prob = Problem(Minimize(objective), constraints)
 
@@ -94,15 +94,19 @@ nsim = int(len_sim/Ts) # simulation length(timesteps)
 xsim = np.zeros((nsim,nx))
 usim = np.zeros((nsim,nu))
 tsim = np.arange(0,nsim)*Ts
-uMPC = un1
+
+uminus1_val = uinit # initial previous measured input is the input at time instant -1.
 for i in range(nsim):
     x_init.value = x0
-    uold.value = uMPC
+    uminus1.value = uminus1_val
+    #xminus1_val = xminus1
     prob.solve(solver=OSQP, warm_start=True) # solve MPC problem
     uMPC = u[:,0].value
     usim[i,:] = uMPC
     x0 = Ad.dot(x0) + Bd.dot(uMPC)
     xsim[i,:] = x0
+
+    uminus1_val = uMPC # or a measurement if the input is affected by noise
     #print(u0)
 
 # In [1]
