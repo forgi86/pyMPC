@@ -17,9 +17,9 @@ Bd = sparse.csc_matrix([
 [nx, nu] = Bd.shape # number of states and number or inputs
 
 # Constraints
-u0 = 0
-umin = np.array([-1000.0]) - u0
-umax = np.array([1000.0]) - u0
+uref = 0
+umin = np.array([-1000.0]) - uref
+umax = np.array([1000.0]) - uref
 
 xmin = np.array([-100.0, -100.0])
 xmax = np.array([100.0,   100.0])
@@ -34,7 +34,7 @@ x0 = np.array([0.1, 0.2]) # initial state
 xr = np.array([50.0, 50.0]) # reference state
 
 # Prediction horizon
-Np = 2
+Np = 10
 
 # Cast MPC problem to a QP: x = (x(0),x(1),...,x(N),u(0),...,u(N-1))
 # - quadratic objective
