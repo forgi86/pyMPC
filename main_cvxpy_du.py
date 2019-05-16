@@ -6,9 +6,9 @@ import scipy.sparse as sparse
 # Discrete time model of the system (mass point with input force and friction)
 
 # Constants #
-Ts = 0.1 # sampling time (s)
-M = 2 # mass (Kg)
-b = 0.3 # friction coefficient (N*s/m)
+Ts = 0.2 # sampling time (s)
+M = 2    # mass (Kg)
+b = 0.3  # friction coefficient (N*s/m)
 
 Ad = sparse.csc_matrix([
     [1.0, Ts],
@@ -31,22 +31,25 @@ Bc = np.array([
 [nx, nu] = Bd.shape # number of states and number or inputs
 
 # Reference input and states
-pref = 10.0
+pref = 7.0
 vref = 0
 xref = np.array([pref, vref]) # reference state
 uref = 0      # reference input
-un1 = np.nan  # input at time step negative one - used to penalize the first delta 0. Could be the same as uref.
+un1 =  np.array([0.0])  # input at time step negative one - used to penalize the first delta 0. Could be the same as uref.
 
 # Constraints
-umin = np.array([-1000.0])
-umax = np.array([1000.0])
-
 xmin = np.array([-100.0, -100.0])
 xmax = np.array([100.0,   100.0])
 
+umin = np.array([-10.0])
+umax = np.array([10.0])
+
+Dumin = np.array([-2e-1])
+Dumax = np.array([2e-1])
+
 # Objective function
-Qx = sparse.diags([0.2, 0.3])   # Quadratic cost for states x0, x1, ..., x_N-1
-QxN = sparse.diags([0.4, 0.5])  # Quadratic cost for xN
+Qx = sparse.diags([0.5, 0.1])   # Quadratic cost for states x0, x1, ..., x_N-1
+QxN = sparse.diags([0.5, 0.1])  # Quadratic cost for xN
 Qu = 0.0 * sparse.eye(1)        # Quadratic cost for u0, u1, ...., u_N-1
 QDu = 2.0 * sparse.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
 
@@ -54,12 +57,14 @@ QDu = 2.0 * sparse.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
 x0 = np.array([0.1, 0.2]) # initial state
 
 # Prediction horizon
-Np = 10
+Np = 20
 
 # Define the optimization problem
 u = Variable((nu, Np))
 x = Variable((nx, Np + 1))
 x_init = Parameter(nx)
+uold = Parameter(nu)
+
 objective = 0
 constraints = [x[:,0] == x_init]
 for k in range(Np):
@@ -67,26 +72,36 @@ for k in range(Np):
     if k > 0:
         objective += quad_form(u[:,k] - u[:,k-1], QDu)               # \sum_{k=1}^{N_p-1} (uk - u_k-1)'QDu(uk - u_k-1)
     else: # at k = 0...
-        if un1 is not np.nan:  # if there is an un1 to be considered
-            objective += quad_form(u[:,k] - un1, QDu) # ... penalize the variation of u0 with respect to un1
+        if uold is not np.nan:  # if there is an uold to be considered
+            objective += quad_form(u[:,k] - uold, QDu) # ... penalize the variation of u0 with respect to uold
 
     constraints += [x[:,k+1] == Ad*x[:,k] + Bd*u[:,k]]               # model dynamics constraints
+
     constraints += [xmin <= x[:,k], x[:,k] <= xmax]                  # state constraints
     constraints += [umin <= u[:,k], u[:,k] <= umax]                  # input constraints
 
+    if k > 0:
+        constraints += [Dumin <= u[:,k] - u[:,k-1] , u[:,k] - u[:,k-1] <= Dumax]
+    else: # at k = 0...
+        if uold is not np.nan:  # if there is an uold to be considered
+            constraints += [Dumin <= u[:,k] - uold , u[:,k] - uold <= Dumax]
 objective += quad_form(x[:, Np] - xref, QxN)                          # add final cost for xN
 prob = Problem(Minimize(objective), constraints)
 
 # Simulate in closed loop
-nsim = 400
+len_sim = 15 # simulation length (s)
+nsim = int(len_sim/Ts) # simulation length(timesteps)
 xsim = np.zeros((nsim,nx))
 usim = np.zeros((nsim,nu))
 tsim = np.arange(0,nsim)*Ts
+uMPC = un1
 for i in range(nsim):
     x_init.value = x0
+    uold.value = uMPC
     prob.solve(solver=OSQP, warm_start=True) # solve MPC problem
-    usim[i,:] = u[:,0].value
-    x0 = Ad.dot(x0) + Bd.dot(u[:,0].value)
+    uMPC = u[:,0].value
+    usim[i,:] = uMPC
+    x0 = Ad.dot(x0) + Bd.dot(uMPC)
     xsim[i,:] = x0
     #print(u0)
 
