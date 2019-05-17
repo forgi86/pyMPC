@@ -33,17 +33,17 @@ Bc = np.array([
 
 # Reference input and states
 pref = 7.0
-vref = 0
+vref = 0.0
 xref = np.array([pref, vref]) # reference state
-uref = 0      # reference input
-uinit =  np.array([0.0])  # input at time step negative one - used to penalize the first delta 0. Could be the same as uref.
+uref = np.array([0.0])    # reference input
+uinit = np.array([0.0])     # input at time step negative one - used to penalize the first delta u at time instant 0. Could be the same as uref.
 
 # Constraints
 xmin = np.array([-100.0, -100.0])
 xmax = np.array([100.0,   100.0])
 
-umin = np.array([-1.5])
-umax = np.array([1.5])
+umin = np.array([-1.5])*100
+umax = np.array([1.5])*100
 
 Dumin = np.array([-2e-1])
 Dumax = np.array([2e-1])
@@ -51,8 +51,8 @@ Dumax = np.array([2e-1])
 # Objective function
 Qx = sparse.diags([0.5, 0.1])   # Quadratic cost for states x0, x1, ..., x_N-1
 QxN = sparse.diags([0.5, 0.1])  # Quadratic cost for xN
-Qu = 0.0 * sparse.eye(1)        # Quadratic cost for u0, u1, ...., u_N-1
-QDu = 2.0 * sparse.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
+Qu = 2.0 * sparse.eye(1)        # Quadratic cost for u0, u1, ...., u_N-1
+QDu = 10.0 * sparse.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
 
 # Initial state
 x0 = np.array([0.1, 0.2]) # initial state
@@ -62,29 +62,34 @@ Np = 20
 
 # Cast MPC problem to a QP: x = (x(0),x(1),...,x(N),u(0),...,u(N-1))
 # - quadratic objective
-P = sparse.block_diag([sparse.kron(sparse.eye(Np), Qx),     # x0... x_N-1
+P_xu = sparse.block_diag([sparse.kron(sparse.eye(Np), Qx),     # x0... x_N-1
                        QxN,                                 # x_N
                        sparse.kron(sparse.eye(Np), Qu)]     # u0... u_N-1
                       ).tocsc()
 
-iDu = 2 * np.eye(Np) + np.eye(Np,k=1) + np.eye(Np, k=-1)
+iDu = 2 * np.eye(Np) - np.eye(Np,k=1) - np.eye(Np, k=-1)
 iDu[Np-1,Np-1] = 1
-P_dU = sparse.block_diag([sparse.kron(sparse.eye((Np+1)*nx), 0), # zeros for x
+P_du = sparse.block_diag([sparse.kron(sparse.eye((Np+1)*nx), 0), # zeros for x
                           sparse.kron(iDu, QDu)]
                          ).tocsc()
 
-P = P + P_dU
+P = P_xu + P_du
 
 # - linear objective
-q = np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),         # x0... x_N-1
+q_x = np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),       # x0... x_N-1
                -QxN.dot(xref),                              # x_N
                np.zeros(Np * nu)])                          # u0... u_N-1
 
-if not np.any(np.isnan(uinit)):
-    q_dU = np.hstack([np.zeros((Np+1) * nx),                # x0... x_N
+q_u = np.hstack([np.zeros((Np+1) * nx),
+               np.kron(np.ones(Np), -Qu.dot(uref))]
+               )
+
+if not np.any(np.isnan(uinit)): # none of the entry of uinit is nan. We can penalize u0 with respect to uinit
+    q_du = np.hstack([np.zeros((Np+1) * nx),                # x0... x_N
                    -QDu.dot(uinit),                         # u0
-                   np.zeros((Np-1) * nu)])                  # u0... u_N-1
-    q = q + q_dU
+                   np.zeros((Np-1) * nu)])                  # u1... u_N-1
+
+q = q_x + q_u + q_du
 
 # - linear dynamics
 Ax = sparse.kron(sparse.eye(Np + 1), -sparse.eye(nx)) + sparse.kron(sparse.eye(Np + 1, k=-1), Ad)
@@ -106,7 +111,7 @@ u = np.hstack([ueq, uineq])
 prob = osqp.OSQP()
 
 # Setup workspace
-prob.setup(P, q, A, l, u, warm_start=True)
+prob.setup(P, q, A, l, u, warm_start=True, verbose=False, eps_abs=1e-10, eps_rel=1e-10)
 
 # Simulate in closed loop
 len_sim = 15 # simulation length (s)
@@ -115,9 +120,21 @@ xsim = np.zeros((nsim,nx))
 usim = np.zeros((nsim,nu))
 tsim = np.arange(0,nsim)*Ts
 
-#uminus1_val = uinit # initial previous measured input is the input at time instant -1.
+
 time_start = time.time()
+uminus1_val = uinit # initial previous measured input is the input at time instant -1.
+
 for i in range(nsim):
+
+    # Update optimization problem
+    l[:nx] = -x0
+    u[:nx] = -x0
+    q_du = np.hstack([np.zeros((Np+1) * nx),                # x0... x_N
+                   -QDu.dot(uminus1_val),                   # u0
+                   np.zeros((Np-1) * nu)])                  # u1... u_N-1
+    q = q_x + q_u + q_du
+    prob.update(l=l, u=u, q=q)
+
     # Solve
     res = prob.solve()
 
@@ -127,14 +144,13 @@ for i in range(nsim):
 
     # Apply first control input to the plant
     uMPC = res.x[-Np * nu:-(Np - 1) * nu]
-    x0 = Ad.dot(x0) + Bd.dot(uMPC)
+    x0 = Ad.dot(x0) + Bd.dot(uMPC)  # system step
     xsim[i,:] = x0
     usim[i,:] = uMPC
+    uminus1_val = uMPC
 
-    # Update initial state
-    l[:nx] = -x0
-    u[:nx] = -x0
-    prob.update(l=l, u=u)
+    if i == 1:
+        print(res.x[-Np * nu:])
 time_sim = time.time() - time_start
 
 # In [1]
