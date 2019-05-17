@@ -84,28 +84,39 @@ q_u = np.hstack([np.zeros((Np+1) * nx),
                np.kron(np.ones(Np), -Qu.dot(uref))]
                )
 
-if not np.any(np.isnan(uinit)): # none of the entry of uinit is nan. We can penalize u0 with respect to uinit
-    q_du = np.hstack([np.zeros((Np+1) * nx),                # x0... x_N
-                   -QDu.dot(uinit),                         # u0
-                   np.zeros((Np-1) * nu)])                  # u1... u_N-1
+q_du = np.hstack([np.zeros((Np+1) * nx),     # x0... x_N
+    -QDu.dot(uinit),                         # u0
+    np.zeros((Np-1) * nu)])                  # u1... u_N-1
 
 q = q_x + q_u + q_du
 
 # - linear dynamics
 Ax = sparse.kron(sparse.eye(Np + 1), -sparse.eye(nx)) + sparse.kron(sparse.eye(Np + 1, k=-1), Ad)
 Bu = sparse.kron(sparse.vstack([sparse.csc_matrix((1, Np)), sparse.eye(Np)]), Bd)
-Aeq = sparse.hstack([Ax, Bu])
-leq = np.hstack([-x0, np.zeros(Np * nx)])
-ueq = leq # for equality constraints -> upper bound  = lower bound!
+Aeq_dyn = sparse.hstack([Ax, Bu])
+leq_dyn = np.hstack([-x0, np.zeros(Np * nx)])
+ueq_dyn = leq_dyn # for equality constraints -> upper bound  = lower bound!
+
 # - input and state constraints
-Aineq = sparse.eye((Np + 1) * nx + Np * nu)
-lineq = np.hstack([np.kron(np.ones(Np + 1), xmin), np.kron(np.ones(Np), umin)]) # lower bound of inequalities
-uineq = np.hstack([np.kron(np.ones(Np + 1), xmax), np.kron(np.ones(Np), umax)]) # upper bound of inequalities
+Aineq_xu = sparse.eye((Np + 1) * nx + Np * nu)
+lineq_xu = np.hstack([np.kron(np.ones(Np + 1), xmin), np.kron(np.ones(Np), umin)]) # lower bound of inequalities
+uineq_xu = np.hstack([np.kron(np.ones(Np + 1), xmax), np.kron(np.ones(Np), umax)]) # upper bound of inequalities
+
+Aineq_du = sparse.vstack([sparse.hstack([np.zeros((Np + 1) * nx), np.ones(nu), np.zeros((Np - 1) * nu)]),  # for u0 - u-1
+                          sparse.hstack([np.zeros((Np * nu, (Np+1) * nx)), -sparse.eye(Np * nu) + sparse.eye(Np * nu, k=1)])  # for uk - uk-1, k=1...Np
+                          ]
+                         )
+
+uineq_du = np.ones((Np+1) * nu)*Dumax
+uineq_du[0:nu] += uinit[0:nu]
+
+lineq_du = np.ones((Np+1) * nu)*Dumin
+lineq_du[0:nu] += uinit[0:nu] # works for nonscalar u?
 
 # - OSQP constraints
-A = sparse.vstack([Aeq, Aineq]).tocsc()
-l = np.hstack([leq, lineq])
-u = np.hstack([ueq, uineq])
+A = sparse.vstack([Aeq_dyn, Aineq_xu, Aineq_du]).tocsc()
+l = np.hstack([leq_dyn, lineq_xu, lineq_du])
+u = np.hstack([ueq_dyn, uineq_xu, uineq_du])
 
 # Create an OSQP object
 prob = osqp.OSQP()
@@ -129,6 +140,10 @@ for i in range(nsim):
     # Update optimization problem
     l[:nx] = -x0
     u[:nx] = -x0
+
+    l[(Np+1)*nx + (Np+1)*nx + (Np)*nu:(Np+1)*nx + (Np+1)*nx + (Np)*nu + nu] = Dumin + uminus1_val[0:nu]
+    u[(Np+1)*nx + (Np+1)*nx + (Np)*nu:(Np+1)*nx + (Np+1)*nx + (Np)*nu + nu] = Dumax + uminus1_val[0:nu]
+
     q_du = np.hstack([np.zeros((Np+1) * nx),                # x0... x_N
                    -QDu.dot(uminus1_val),                   # u0
                    np.zeros((Np-1) * nu)])                  # u1... u_N-1
