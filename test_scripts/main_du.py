@@ -42,8 +42,8 @@ uinit = np.array([0.0])     # input at time step negative one - used to penalize
 xmin = np.array([-100.0, -100.0])
 xmax = np.array([100.0,   100.0])
 
-umin = np.array([-1.5])*100
-umax = np.array([1.5])*100
+umin = np.array([-1.2])
+umax = np.array([1.2])
 
 Dumin = np.array([-2e-1])
 Dumax = np.array([2e-1])
