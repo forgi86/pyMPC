@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
     # Simulate in closed loop
     [nx, nu] = Bd.shape # number of states and number or inputs
-    len_sim = 20 # simulation length (s)
+    len_sim = 15 # simulation length (s)
     nsim = int(len_sim/Ts) # simulation length(timesteps)
     xsim = np.zeros((nsim,nx))
     usim = np.zeros((nsim,nu))
