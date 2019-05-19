@@ -129,7 +129,7 @@ class MPCController:
         nx = self.nx
         nu = self.nu
         Dumin = self.Dumin
-        DUmax = self.Dumax
+        Dumax = self.Dumax
         QDu = self.QDu
 
         self.l[:nx] = -x0_rh
