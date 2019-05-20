@@ -122,6 +122,25 @@ class MPCController:
             self.uminus1_rh = u # otherwise it is just the uMPC updated in the step function!
         self._update_QP_matrices_()
 
+    def __controller_function__(self, x, u):
+        """ This function is meant to be used for debug only.
+        """
+        self.x0_rh = x
+        self.uminus1_rh = u
+        self._update_QP_matrices_()
+        # Check solver status
+
+        res = self.prob.solve()
+
+        if res.info.status != 'solved':
+            raise ValueError('OSQP did not solve the problem!')
+
+        # Extract first control input to the plant
+        uMPC = res.x[-self.Np*self.nu:-(self.Np - 1)*self.nu]
+
+        return uMPC
+
+
     def _update_QP_matrices_(self):
         x0_rh = self.x0_rh
         uminus1_rh = self.uminus1_rh
@@ -314,6 +333,8 @@ if __name__ == '__main__':
         usim[i,:] = uMPC
 
     time_sim = time.time() - time_start
+
+    #K.__controller_function__(np.array([0,0]), np.array([0]))
 
     fig,axes = plt.subplots(3,1, figsize=(10,10))
     axes[0].plot(tsim, xsim[:,0], "k", label='p')
