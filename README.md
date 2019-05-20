@@ -16,11 +16,11 @@ git clone https://github.com/forgi86/pyMPC.git
 ```
 pip install -e .
 ```
-in the pyMPC project root folder (where the file setup.py is located)
+in the pyMPC root folder (where the file setup.py is located).
 
 ## Usage 
 
-This is a snippet code illustrating how to use the MPCController class contained in the pyMPC project:
+This code snippets illustrates the use of the MPCController class:
 
 ```
 from pyMPC.mpc import MPCController
