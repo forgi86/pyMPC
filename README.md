@@ -4,7 +4,7 @@ Implementation of an MPC controller in python based on the <a href="https://osqp
 
 ## Installation
 
-1. install the [QSQP](https://osqp.org/) solver.
+1. Install the [QSQP](https://osqp.org/) solver.
 ```
 pip install osqp
 ```
@@ -12,7 +12,7 @@ pip install osqp
 ```
 git clone https://github.com/forgi86/pyMPC.git
 ```
-3. Run the command
+3. Install pyMPC by running
 ```
 pip install -e .
 ```
