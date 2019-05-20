@@ -20,7 +20,7 @@ in the pyMPC project root folder (where the file setup.py is located)
 
 ## Usage 
 
-This is a snippet code illustrating how to use the MPCController:
+This is a snippet code illustrating how to use the MPCController class contained in the pyMPC project:
 
 ```
 from pyMPC.mpc import MPCController
@@ -38,4 +38,4 @@ for i in range(nsim):
   xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # system simulation steps
   K.update(xstep) # update with measurement
 ```
-A full working example is available in the example folder
+A full working example is available in the [examples](examples) folder

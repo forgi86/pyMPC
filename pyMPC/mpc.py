@@ -5,6 +5,18 @@ import osqp
 
 
 class MPCController:
+    """ This class implements an MPC controller
+
+    Attributes
+    ----------
+    x0 : array_like
+        Initial system state.
+    Ad : matrix_like
+        Discrete-time system matrix A.
+    Bd : matrix_like
+        Discrete-time system matrix B.
+    ...
+    """
     def __init__(self, Ad, Bd, Np=10,
                  x0=None, xref=None, uref=None, uminus1=None,
                  Qx=None, QxN=None, Qu=None, QDu=None,
