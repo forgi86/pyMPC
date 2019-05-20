@@ -4,7 +4,7 @@ Implementation of an MPC controller in python based on the <a href="https://osqp
 
 ## Installation
 
-1. install the [QSQP](https://gym.openai.com/docs/) solver.
+1. install the [QSQP](https://osqp.org/) solver.
 ```
 pip install osqp
 ```
@@ -38,4 +38,4 @@ for i in range(nsim):
   xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # system simulation steps
   K.update(xstep) # update with measurement
 ```
-A full working example is available in the [examples](examples) folder
+A full working example is available [here](examples/example_mpc.ipynb). 
