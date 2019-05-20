@@ -38,4 +38,6 @@ for i in range(nsim):
   xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # system simulation steps
   K.update(xstep) # update with measurement
 ```
-A full working example is available [here](examples/example_mpc.ipynb). 
+Full working examples using this MPC controller are available in the [examples](examples) folder:
+ * [Point mass with input force and friction](examples/example_point_mass.ipynp)
+ * [Inverted pendulum on a cart](examples/example_inverted_pendulum.ipynp)
