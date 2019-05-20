@@ -39,5 +39,5 @@ for i in range(nsim):
   K.update(xstep) # update with measurement
 ```
 Full working examples using this MPC controller are available in the [examples](examples) folder:
- * [Point mass with input force and friction](examples/example_point_mass.ipynp)
- * [Inverted pendulum on a cart](examples/example_inverted_pendulum.ipynp)
+ * [Point mass with input force and friction](examples/example_point_mass.ipynb)
+ * [Inverted pendulum on a cart](examples/example_inverted_pendulum.ipynb)
