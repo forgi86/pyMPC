@@ -75,12 +75,16 @@ if __name__ == '__main__':
     time_start = time.time()
 
     xstep = x0
+    uMPC = uminus1
     for i in range(nsim):
-        uMPC = K.step()
-        xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # system step
-        K.update(xstep) # update with measurement
         xsim[i,:] = xstep
+
+        # MPC update and step. Could be in just one function call
+        K.update(xstep, uMPC) # update with measurement
+        uMPC = K.step() # MPC step (u_k value)
         usim[i,:] = uMPC
+
+        xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # Real system step (x_k+1 value)
 
     time_sim = time.time() - time_start
 

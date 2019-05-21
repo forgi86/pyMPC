@@ -78,16 +78,20 @@ if __name__ == '__main__':
     time_start = time.time()
 
     xstep = x0
-
+    uMPC =  uminus1
     for i in range(nsim):
-        uMPC = K.step()
+        xsim[i,:] = xstep
 
-        # System simulation
+        # MPC update and step. Could be in just one function call
+        K.update(xstep, uMPC) # update with measurement
+        uMPC = K.step() # MPC step (u_k value)
+        usim[i,:] = uMPC
+
+        # System simulation step
         F = uMPC
         v = xstep[1]
         theta = xstep[2]
         omega = xstep[3]
-
         der = np.zeros(nx)
         der[0] = v
         der[1] = (m*l*np.sin(theta)*omega**2 -m*g*np.sin(theta)*np.cos(theta)  + m*ftheta*np.cos(theta)*omega + F - b*v)/(M+m*(1-np.cos(theta)**2));
@@ -95,11 +99,6 @@ if __name__ == '__main__':
         der[3] = ((M+m)*(g*np.sin(theta) - ftheta*omega) - m*l*omega**2*np.sin(theta)*np.cos(theta) -(F-b*v)*np.cos(theta))/(l*(M + m*(1-np.cos(theta)**2)) );
         # Forward euler step
         xstep = xstep + der*Ts
-        #xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # system step
-
-        K.update(xstep) # update with measurement
-        xsim[i,:] = xstep
-        usim[i,:] = uMPC
 
     time_sim = time.time() - time_start
 
