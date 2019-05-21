@@ -35,19 +35,19 @@
 
 \begin{document}
 
- \title{MPC Python}
+ \title{pyMPC Documentation}
 \author{Marco Forgione}
 
 \maketitle
 
-\section*{Abstract}
 
-\section{MPC Problem}
+\section{Mathematical formulation}
+
 The MPC problem to be solved is:
 \begin{subequations}
 \label{eq:MPC}
 \begin{align}
-  &\arg \min_{\{u\}_0^{\Np-1}, \{x\}_0^{\Np}} \big(x_N - x_{ref}\big)^\top \QxN \big(x_N - x_{ref}\big) + \nonumber \\  
+  &\arg \min_{u_0,u_1,\dots,u_{\Np-1}, x_0, x_1,\dots,x_{\Np}} \big(x_N - x_{ref}\big)^\top \QxN \big(x_N - x_{ref}\big) + \nonumber \\  
   &\sum_{k=0}^{\Np-1} \big(x_k - x_{ref}\big)^\top \Qx\big(x_k - x_{ref}\big) + \big(u_k - u_{ref}\big)^\top \Qu \big(u_k - u_{ref}\big)  +  
   \Delta u_k^\top \Qdu \Delta u_k \\ \nonumber
   &\text{subject to} \nonumber\\
@@ -55,9 +55,22 @@ The MPC problem to be solved is:
   &u_{min} \leq u_k \leq u_{max}\\
   &x_{min} \leq x_k \leq x_{max}\\
   &\Delta u_{min} \leq \Delta u_k \leq \Delta u_{min}\\
-  &x_0 = \bar x
+  &x_0 = \bar x\\
+  &u_{-1} = \bar u
 \end{align}
 \end{subequations}
+where $\Delta u_k = u_k - u_{k-1}$.
+
+In a typical implementation, the MPC input is applied in \emph{receding horizon}. At each time step $i$, the problem \eqref{eq:MPC} is solved with $x_0=x[i],\;u_{-1}=u[{i-1}]$ and an optimal input sequence $u_{0},\dots,u_{\Np}$ is obtained. The first element of this sequence $u_0$ is the control input that is actually applied at time instant $i$. At time instant $i+1$, a new state $x[i+1]$ is measured (or estimated), and the process is iterated. 
+
+Thus, formally, the MPC control law is a (static) function of the current state and the previous input:
+\begin{equation}
+ u_{MPC} = K(x[i], u[i-1]).
+\end{equation}
+
+Note that this function possibly depends on the references $x_{ref}$ and $u_{ref}$ and on the system matrices $A$ and $B$.
+
+\subsection{Quadratic Programming Formulation}
 The QP solver expets a problem with form: 
 \begin{subequations}
 \label{eq:QP}
@@ -67,7 +80,8 @@ The QP solver expets a problem with form:
  &l \leq Ax \leq u
 \end{align}
 \end{subequations}
-The difficulty is to write the MPC optimization problem \eqref{eq:MPC} in form
+
+The difficulty is to rewrite the MPC optimization problem \eqref{eq:MPC} in form
 \eqref{eq:QP} to use the standard QP solver.
 
 \end{document} 
