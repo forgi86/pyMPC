@@ -299,7 +299,7 @@ class MPCController:
         lineq_du = np.ones((Np+1) * nu)*Dumin
         lineq_du[0:nu] += self.uminus1[0:nu] # works for nonscalar u?
 
-        # Positivity of slack variables
+        # Positivity of slack variables (not necessary!)
         #Aineq_eps_pos = sparse.hstack([sparse.coo_matrix((n_eps,(Np+1)*nx)), sparse.coo_matrix((n_eps, Np*nu)), sparse.eye(n_eps)])
         #lineq_eps_pos = np.zeros(n_eps)
         #uineq_eps_pos = np.ones(n_eps)*np.inf
@@ -326,9 +326,9 @@ class MPCController:
 
         # Debug assignments
 
-        self.Aineq_du = Aineq_du
-        self.leq_dyn = leq_dyn
-        self.lineq_du = lineq_du
+        #self.Aineq_du = Aineq_du
+        #self.leq_dyn = leq_dyn
+        #self.lineq_du = lineq_du
 
 
 

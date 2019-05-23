@@ -116,7 +116,7 @@ class MPCController:
         self.x0_rh = self.x0
         self.uminus1_rh = self.uminus1
         self._compute_QP_matrices_()
-        self.prob.setup(self.P, self.q, self.A, self.l, self.u, warm_start=True, verbose=False, eps_abs=1e-10, eps_rel=1e-10)
+        self.prob.setup(self.P, self.q, self.A, self.l, self.u, warm_start=True, verbose=False, eps_abs=1e-4, eps_rel=1e-4)
 
     def step(self):
         # Solve
@@ -289,6 +289,8 @@ import time
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
+    import time
+    import matplotlib.pyplot as plt
     # Constants #
     Ts = 0.2 # sampling time (s)
     M = 2    # mass (Kg)
@@ -320,8 +322,8 @@ if __name__ == '__main__':
     uminus1 = np.array([0.0])     # input at time step negative one - used to penalize the first delta u at time instant 0. Could be the same as uref.
 
     # Constraints
-    xmin = np.array([-100.0, -100.0])
-    xmax = np.array([100.0,   100.0])
+    xmin = np.array([-10, -10.0])
+    xmax = np.array([7.0,   10.0])
 
     umin = np.array([-1.2])
     umax = np.array([1.2])
@@ -355,7 +357,6 @@ if __name__ == '__main__':
     tsim = np.arange(0,nsim)*Ts
 
     time_start = time.time()
-
     xstep = x0
     for i in range(nsim):
         uMPC = K.step()
