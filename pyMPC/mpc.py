@@ -6,7 +6,6 @@ import osqp
 
 class MPCController:
     """ This class implements an MPC controller
-
     Attributes
     ----------
     x0 : array_like
@@ -286,6 +285,7 @@ class MPCController:
                                   sparse.hstack([np.zeros((Np * nu, (Np+1) * nx)), -sparse.eye(Np * nu) + sparse.eye(Np * nu, k=1)])  # for uk - uk-1, k=1...Np
                                   ]
                                  )
+        # - bounds on \Delta u
         Aineq_du = sparse.hstack([Aineq_du, sparse.coo_matrix((Aineq_du.shape[0], n_eps))])
 
         uineq_du = np.ones((Np+1) * nu)*Dumax
@@ -294,10 +294,22 @@ class MPCController:
         lineq_du = np.ones((Np+1) * nu)*Dumin
         lineq_du[0:nu] += self.uminus1[0:nu] # works for nonscalar u?
 
+        # Positivity of slack variables
+        Aineq_eps_pos = sparse.hstack([sparse.coo_matrix((n_eps,(Np+1)*nx)), sparse.coo_matrix((n_eps, Np*nu)), sparse.eye(n_eps)])
+        lineq_eps_pos = np.zeros(n_eps)
+        uineq_eps_pos = np.ones(n_eps)*np.inf
+
+        self.Aineq_xu = Aineq_xu
+        self.Aineq_du = Aineq_du
+        self.Aineq_eps_pos = Aineq_eps_pos
+        self.leq_dyn = leq_dyn
+        self.lineq_xu = lineq_xu
+        self.lineq_du = lineq_du
+
         # - OSQP constraints
-        A = sparse.vstack([Aeq_dyn, Aineq_xu, Aineq_du]).tocsc()
-        l = np.hstack([leq_dyn, lineq_xu, lineq_du])
-        u = np.hstack([ueq_dyn, uineq_xu, uineq_du])
+        A = sparse.vstack([Aeq_dyn, Aineq_xu, Aineq_du, Aineq_eps_pos]).tocsc()
+        l = np.hstack([leq_dyn, lineq_xu, lineq_du, lineq_eps_pos])
+        u = np.hstack([ueq_dyn, uineq_xu, uineq_du, uineq_eps_pos])
 
         # assign all
         self.P = sparse.block_diag([P_X, P_U, P_eps])
