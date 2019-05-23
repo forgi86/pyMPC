@@ -120,7 +120,7 @@ class MPCController:
         self.x0_rh = self.x0
         self.uminus1_rh = self.uminus1
         self._compute_QP_matrices_()
-        self.prob.setup(self.P, self.q, self.A, self.l, self.u, warm_start=True, verbose=False, eps_abs=1e-10, eps_rel=1e-10)
+        self.prob.setup(self.P, self.q, self.A, self.l, self.u, warm_start=True, verbose=False, eps_abs=1e-4, eps_rel=1e-4)
 
     def step(self):
         # Solve
@@ -276,7 +276,7 @@ class MPCController:
 
         # - bounds on x
         Aineq_x = sparse.hstack([sparse.eye((Np + 1) * nx), sparse.coo_matrix(((Np+1)*nx, Np*nu))])
-        Aineq_x = sparse.hstack([Aineq_x, sparse.coo_matrix((Aineq_x.shape[0], n_eps))]) # For soft constraints slack variables
+        Aineq_x = sparse.hstack([Aineq_x, sparse.eye(n_eps)]) # For soft constraints slack variables
         lineq_x = np.kron(np.ones(Np + 1), xmin) # lower bound of inequalities
         uineq_x = np.kron(np.ones(Np + 1), xmax) # upper bound of inequalities
 
@@ -300,14 +300,17 @@ class MPCController:
         lineq_du[0:nu] += self.uminus1[0:nu] # works for nonscalar u?
 
         # Positivity of slack variables
-        Aineq_eps_pos = sparse.hstack([sparse.coo_matrix((n_eps,(Np+1)*nx)), sparse.coo_matrix((n_eps, Np*nu)), sparse.eye(n_eps)])
-        lineq_eps_pos = np.zeros(n_eps)
-        uineq_eps_pos = np.ones(n_eps)*np.inf
+        #Aineq_eps_pos = sparse.hstack([sparse.coo_matrix((n_eps,(Np+1)*nx)), sparse.coo_matrix((n_eps, Np*nu)), sparse.eye(n_eps)])
+        #lineq_eps_pos = np.zeros(n_eps)
+        #uineq_eps_pos = np.ones(n_eps)*np.inf
 
         # - OSQP constraints
-        A = sparse.vstack([Aeq_dyn, Aineq_x, Aineq_u, Aineq_du, Aineq_eps_pos]).tocsc()
-        l = np.hstack([leq_dyn, lineq_x, lineq_u, lineq_du, lineq_eps_pos])
-        u = np.hstack([ueq_dyn, uineq_x, uineq_u, uineq_du, uineq_eps_pos])
+        #A = sparse.vstack([Aeq_dyn, Aineq_x, Aineq_u, Aineq_du, Aineq_eps_pos]).tocsc()
+        #l = np.hstack([leq_dyn, lineq_x, lineq_u, lineq_du, lineq_eps_pos])
+        #u = np.hstack([ueq_dyn, uineq_x, uineq_u, uineq_du, uineq_eps_pos])
+        A = sparse.vstack([Aeq_dyn, Aineq_x, Aineq_u, Aineq_du]).tocsc()
+        l = np.hstack([leq_dyn, lineq_x, lineq_u, lineq_du])
+        u = np.hstack([ueq_dyn, uineq_x, uineq_u, uineq_du])
 
         # assign all
         self.P = sparse.block_diag([P_X, P_U, P_eps])
@@ -363,8 +366,8 @@ if __name__ == '__main__':
     uminus1 = np.array([0.0])     # input at time step negative one - used to penalize the first delta u at time instant 0. Could be the same as uref.
 
     # Constraints
-    xmin = np.array([-100.0, -100.0])
-    xmax = np.array([100.0,   100.0])
+    xmin = np.array([-10, -10.0])
+    xmax = np.array([7.0,   10.0])
 
     umin = np.array([-1.2])
     umax = np.array([1.2])
