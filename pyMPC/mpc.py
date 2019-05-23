@@ -123,6 +123,11 @@ class MPCController:
         self.prob.setup(self.P, self.q, self.A, self.l, self.u, warm_start=True, verbose=False, eps_abs=1e-4, eps_rel=1e-4)
 
     def step(self):
+
+        Np = self.Np
+        nx = self.nx
+        nu = self.nu
+
         # Solve
         res = self.prob.solve()
 
@@ -173,6 +178,10 @@ class MPCController:
         QDu = self.QDu
         uref = self.uref
         Qeps = self.Qeps
+        Qx = self.Qx
+        QxN = self.QxN
+        Qu = self.Qu
+        xref = self.xref
 
         self.l[:nx] = -x0_rh
         self.u[:nx] = -x0_rh
