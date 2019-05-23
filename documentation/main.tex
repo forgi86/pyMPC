@@ -1,4 +1,4 @@
-\documentclass[a4paper,12pt,fleqn]{article}
+\documentclass[a4paper,12pt,fleqn]{book}
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage{graphicx}
@@ -31,8 +31,11 @@
 \newcommand{\greedy}{\text{greedy}}
 \newcommand{\DP}[1]{\textcolor{red}{#1}}
 \newcommand{\MPC}{\mathrm{MPC}}
-\newcommand{\Np}{N_p}
-
+\newcommand{\Np}{{N_p}}
+\newcommand{\blkdiag}{\text{blkdiag}}
+\newcommand{\slack}{\epsilon}
+\newcommand{\varx}{\mathbf{x}}
+\newcommand{\varu}{\mathbf{u}}
 \begin{document}
 
  \title{pyMPC Documentation}
@@ -40,27 +43,33 @@
 
 \maketitle
 
-
-\section{Mathematical formulation}
-
+\chapter{Mathematical formulation}
 The MPC problem to be solved is:
 \begin{subequations}
 \label{eq:MPC}
 \begin{align}
-  &\arg \min_{u_0,u_1,\dots,u_{\Np-1}, x_0, x_1,\dots,x_{\Np}} \big(x_N - x_{ref}\big)^\top \QxN \big(x_N - x_{ref}\big) + \nonumber \\  
-  &\sum_{k=0}^{\Np-1} \big(x_k - x_{ref}\big)^\top \Qx\big(x_k - x_{ref}\big) + \big(u_k - u_{ref}\big)^\top \Qu \big(u_k - u_{ref}\big)  +  
-  \Delta u_k^\top \Qdu \Delta u_k \\ \nonumber
+  &\arg \min_{\varx,\varu} 
+  \overbrace{\big(x_N - x_{ref}\big)^\top \QxN \big(x_N - x_{ref}\big)}^{=J_{x_N}} + 
+  \overbrace{\sum_{k=0}^{\Np-1} \big(x_k - x_{ref}\big)^\top \Qx\big(x_k - x_{ref}\big)}^{J_{x}}+ \nonumber \\
+  &  + 
+    \overbrace{\sum_{k=0}^{\Np-1} \big(u_k - u_{ref}\big)^\top \Qu \big(u_k - u_{ref}\big)}^{J_u}
+    +  
+  \overbrace{\sum_{k=0}^{\Np-1} \Delta u_k^\top \Qdu \Delta u_k}^{J_{\Delta u}} \\ \nonumber
   &\text{subject to} \nonumber\\
-  &x_{k+1} = Ax_k + B u_k\\ 
+  &x_{k+1} = Ax_k + B u_k\\ \label{eq:linear_dynamics}
   &u_{min} \leq u_k \leq u_{max}\\
   &x_{min} \leq x_k \leq x_{max}\\
   &\Delta u_{min} \leq \Delta u_k \leq \Delta u_{min}\\
   &x_0 = \bar x\\
   &u_{-1} = \bar u
 \end{align}
-\end{subequations}
-where $\Delta u_k = u_k - u_{k-1}$.
+\end{subequations} where $\Delta u_k = u_k - u_{k-1}$.
 
+The optimization variables are 
+\begin{align}
+  \varx & = \begin{bmatrix}x_0 & x_1 & \dots & x_\Np\end{bmatrix},\\
+  \varu & = \begin{bmatrix}u_0 & u_1 & \dots & u_{\Np-1}\end{bmatrix},\\  
+\end{align}
 In a typical implementation, the MPC input is applied in \emph{receding horizon}. At each time step $i$, the problem \eqref{eq:MPC} is solved with $x_0=x[i],\;u_{-1}=u[{i-1}]$ and an optimal input sequence $u_{0},\dots,u_{\Np}$ is obtained. The first element of this sequence $u_0$ is the control input that is actually applied at time instant $i$. At time instant $i+1$, a new state $x[i+1]$ is measured (or estimated), and the process is iterated. 
 
 Thus, formally, the MPC control law is a (static) function of the current state and the previous input:
@@ -68,9 +77,9 @@ Thus, formally, the MPC control law is a (static) function of the current state 
  u_{MPC} = K(x[i], u[i-1]).
 \end{equation}
 
-Note that this function possibly depends on the references $x_{ref}$ and $u_{ref}$ and on the system matrices $A$ and $B$.
+Note that this function also depends on the references $x_{ref}$ and $u_{ref}$ and on the system matrices $A$ and $B$.
 
-\subsection{Quadratic Programming Formulation}
+\section{Quadratic Programming Formulation}
 The QP solver expets a problem with form: 
 \begin{subequations}
 \label{eq:QP}
@@ -80,9 +89,170 @@ The QP solver expets a problem with form:
  &l \leq Ax \leq u
 \end{align}
 \end{subequations}
+The challenge here is to rewrite the MPC optimization problem \eqref{eq:MPC} in form
+\eqref{eq:QP} to use the standard QP solver. 
 
-The difficulty is to rewrite the MPC optimization problem \eqref{eq:MPC} in form
-\eqref{eq:QP} to use the standard QP solver.
+\subsection{Cost function}
+By direct inspection, the non-constant terms of the cost function in $Q_x$ are:
+\begin{multline}
+ J_{Q_u} = \frac{1}{2}
+ \begin{bmatrix}
+  u_0 & u_1 &\dots & u_{\Np-1}
+ \end{bmatrix}^\top
+ \blkdiag(Q_x, Q_x, \dots, Q_x)
+ \begin{bmatrix}
+  u_0 \\  u_1\\ \vdots\\  u_{\Np-1}
+ \end{bmatrix}^\top
+ %\begin{bmatrix}
+ % Q_x       & 0  &\dots   & \dots & 0\\
+ % 0         & Q_x  &0       & \dots & 0\\
+ % 0         & 0     &\ddots  & \dots & 0\\
+ % \vdots         & 0    &0       & Q_x & 0\\ 
+ % 0         & 0    &0       & 0 &  Q_x\ 
+ % \end{bmatrix}
+ + \\
+ +
+  \begin{bmatrix}
+  -x_{ref}^\top Q_x & -x_{ref}^\top Q_x &\dots & -x_{ref}^\top Q_x
+ \end{bmatrix}^\top 
+ \begin{bmatrix}
+  u_0 \\ u_1 \\ \vdots \\ u_{\Np-1}
+ \end{bmatrix}^\top 
+ \end{multline}
+ and similarly for the term in $Q_{x_\Np}$ and the terms in $Q_u$. 
+ For the terms in $Q \Delta u$ we have instead
+\begin{multline}
+ J_{\Delta u} = \frac{1}{2}
+ \begin{bmatrix}
+  u_0 & u_1 &\dots & u_{\Np-1}
+ \end{bmatrix}^\top
+  \begin{bmatrix}
+  2Q_{\Delta u} & -Q_{\Delta u} &0                  & \dots         & \dots  &   0\\
+  -Q_{\Delta u} & 2Q_{\Delta u} &-Q_{\Delta u}      &0              & \dots  &   0\\
+  0             & -Q_{\Delta u} &\ddots             & \ddots        &\ddots  &   0\\
+  0             & 0             &\ddots             & \ddots        &\ddots  &   0\\  
+  0             & 0             &\ddots             & \ddots        &\ddots  &   0\\
+  0             & 0             &0                  &-Q_{\Delta u}  & 2Q_{\Delta u} &-Q_{\Delta u}\\  
+  0             & 0             &0                  &0              & -Q_{\Delta u} &Q_{\Delta u}\\  
+  \end{bmatrix}
+ \begin{bmatrix}
+  u_0 \\  u_1\\ \vdots\\  u_{\Np-1}
+ \end{bmatrix}^\top
+ + \\
+ +
+  \begin{bmatrix}
+  -{\bar u}^\top Q_{\Delta u} & 0 & \dots  & 0
+ \end{bmatrix}
+ \begin{bmatrix}
+  u_0 \\ u_1 \\ \vdots \\ u_{\Np-1}
+ \end{bmatrix}^\top 
+ \end{multline} 
+\subsection{Constraints}
+\subsubsection{Linear dynamics}
+Let us consider the linear equality constraints \eqref{eq:linear_dynamics} representing the system dynamcs. These can 
+be written in matrix form as
+\begin{equation}
+\begin{bmatrix}
+x_0\\
+x_1\\
+\vdots\\
+x_{\Np-1}\\
+x_{\Np}
+\end{bmatrix}=
+\overbrace{
+\begin{bmatrix}
+ 0      &0      &\dots  &0\\
+ A_d    &0      &\dots  & 0\\
+ 0      &A_d    &\dots  &0\\
+ \vdots &0      &\ddots & 0\\
+ 0      &0      &\dots  &A_d
+\end{bmatrix}
+}^{=\mathcal{A}}
+\begin{bmatrix}
+x_0\\
+x_1\\
+\vdots\\
+x_{\Np-1}\\
+x_{\Np} 
+\end{bmatrix} +
+\overbrace{
+\begin{bmatrix}
+ 0      &0      &\dots  &0\\
+ B_d    &0      &\dots  & 0\\
+ 0      &B_d    &\dots  &0\\
+ \vdots &0      &\ddots & 0\\
+ 0      &0      &\dots  &B_d
+\end{bmatrix}
+}^{=\mathcal B}
+\begin{bmatrix}
+u_0\\
+u_1\\
+\vdots\\
+u_{\Np-2}\\
+u_{\Np-1} 
+\end{bmatrix} +
+\overbrace{
+\begin{bmatrix}
+\bar x\\
+0\\
+\vdots\\
+\vdots \\
+0 
+\end{bmatrix}
+}^{=\mathcal{C}}
+\end{equation}
+we get a set of linear equality constraints representing the system dynamics \eqref{eq:linear_dynamics}.
+These constraints can be written as
+\begin{equation}
+ \begin{bmatrix}
+  \mathcal{A}-I & \mathcal{B}
+ \end{bmatrix}
+ \begin{bmatrix}
+  x\\
+  u
+ \end{bmatrix}
+ = \mathcal{C}.
+\end{equation}
+\subsubsection{Variable bounds}
+Bounds on $x$ and $u$ are readily implemented as
+\begin{equation}
+\begin{bmatrix}
+ x_{min}\\u_{min}
+\end{bmatrix}
+\leq
+\begin{bmatrix}
+ I &0\\
+ 0 & I
+\end{bmatrix}
+\begin{bmatrix}
+ x\\u
+\end{bmatrix}
+\leq
+\begin{bmatrix}
+ x_{max}\\u_{max}
+\end{bmatrix}.
+\end{equation}
+However, bounds on $x$ may make the problem unfeasible! A common solution
+is to transform the constraints in $x$ into soft constraints by means of  \emph{slack variables} $\slack$.
+\begin{equation}
+\begin{bmatrix}
+ x_{min}\\u_{min}
+\end{bmatrix}
+\leq
+\begin{bmatrix}
+ I &0 &I\\
+ 0 &I & 0
+\end{bmatrix}
+\begin{bmatrix}
+ x\\
+ u\\
+ \slack
+\end{bmatrix}
+\leq
+\begin{bmatrix}
+ x_{max}\\u_{max}
+\end{bmatrix}
+\end{equation}.
 
 \end{document} 
 

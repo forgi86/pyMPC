@@ -40,8 +40,8 @@ if __name__ == '__main__':
     uminus1 = np.array([0.0])     # input at time step negative one - used to penalize the first delta u at time instant 0. Could be the same as uref.
 
     # Constraints
-    xmin = np.array([-100.0, -100, -100, -100])
-    xmax = np.array([100.0,   100.0, 100, 100])
+    xmin = np.array([-1.0, -100, -100, -100])
+    xmax = np.array([0.3,   100.0, 100, 100])
 
     umin = np.array([-20])
     umax = np.array([20])
@@ -64,7 +64,8 @@ if __name__ == '__main__':
 
     K = MPCController(Ad,Bd,Np=Np, x0=x0,xref=xref,uminus1=uminus1,
                       Qx=Qx, QxN=QxN, Qu=Qu,QDu=QDu,
-                      xmin=xmin,xmax=xmax,umin=umin,umax=umax,Dumin=Dumin,Dumax=Dumax)
+                      xmin=xmin,xmax=xmax,umin=umin,umax=umax,Dumin=Dumin,Dumax=Dumax,
+                      eps_feas = 1e3)
     K.setup()
 
     # Simulate in closed loop
