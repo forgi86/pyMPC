@@ -20,7 +20,8 @@ class MPCController:
     def __init__(self, Ad, Bd, Np=10,
                  x0=None, xref=None, uref=None, uminus1=None,
                  Qx=None, QxN=None, Qu=None, QDu=None,
-                 xmin=None, xmax=None, umin=None,umax=None,Dumin=None,Dumax=None):
+                 xmin=None, xmax=None, umin=None,umax=None,Dumin=None,Dumax=None,
+                 eps_feas = 1e6):
         self.Ad = Ad
         self.Bd = Bd
         self.nx, self.nu = self.Bd.shape # number of states and number or inputs
@@ -99,9 +100,13 @@ class MPCController:
         else:
             self.Dumax = np.ones(self.nu)*np.inf
 
+        self.eps_feas = eps_feas
+        self.Qeps = eps_feas * sparse.eye(self.nx)
+
         self.JX_ON = True
         self.JU_ON = True
         self.JDU_ON = True
+        self.SOFT_ON = True
 
         self.prob = osqp.OSQP()
         self.P = None
@@ -127,9 +132,10 @@ class MPCController:
             raise ValueError('OSQP did not solve the problem!')
 
         # Extract first control input to the plant
-        uMPC = res.x[-self.Np*self.nu:-(self.Np - 1)*self.nu]
+        uMPC = res.x[(Np+1)*nx:(Np+1)*nx + nu]
 
         self.uminus1_rh = uMPC
+        self.res = res
         return uMPC
 
     def update(self,x,u=None):
@@ -167,6 +173,7 @@ class MPCController:
         Dumax = self.Dumax
         QDu = self.QDu
         uref = self.uref
+        Qeps = self.Qeps
 
         self.l[:nx] = -x0_rh
         self.u[:nx] = -x0_rh
@@ -192,7 +199,10 @@ class MPCController:
                               np.zeros((Np - 1) * nu)])     # u1..uN-1
         else:
             pass
-        self.q = np.hstack([q_X, q_U])
+
+        q_eps = np.zeros((Np+1)*nx)
+        self.q = np.hstack([q_X, q_U, q_eps])
+#        self.q = np.hstack([q_X, q_U])
 
         self.prob.update(l=self.l, u=self.u, q=self.q)
 
@@ -216,6 +226,7 @@ class MPCController:
         umax = self.umax
         Dumin = self.Dumin
         Dumax = self.Dumax
+        Qeps = self.Qeps
 
         # Cast MPC problem to a QP: x = (x(0),x(1),...,x(N),u(0),...,u(N-1))
         # - quadratic objective
@@ -248,24 +259,34 @@ class MPCController:
         else:
             pass
 
+        P_eps = sparse.kron(np.eye((Np+1)), Qeps)
+        q_eps = np.zeros((Np+1)*nx)
+
         # Linear constraints
 
         # - linear dynamics x_k+1 = Ax_k + Bu_k
         Ax = sparse.kron(sparse.eye(Np + 1), -sparse.eye(nx)) + sparse.kron(sparse.eye(Np + 1, k=-1), Ad)
         Bu = sparse.kron(sparse.vstack([sparse.csc_matrix((1, Np)), sparse.eye(Np)]), Bd)
+
+        n_eps = (Np + 1) * nx
         Aeq_dyn = sparse.hstack([Ax, Bu])
+        Aeq_dyn = sparse.hstack([Aeq_dyn, sparse.coo_matrix((Aeq_dyn.shape[0], n_eps))]) # For soft constraints slack variables
+
         leq_dyn = np.hstack([-x0, np.zeros(Np * nx)])
         ueq_dyn = leq_dyn # for equality constraints -> upper bound  = lower bound!
 
-        # - input and state constraints
+        # - bounds on x and u
         Aineq_xu = sparse.eye((Np + 1) * nx + Np * nu)
+        Aineq_xu = sparse.hstack([Aineq_xu, sparse.coo_matrix((Aineq_xu.shape[0], n_eps))]) # For soft constraints slack variables
         lineq_xu = np.hstack([np.kron(np.ones(Np + 1), xmin), np.kron(np.ones(Np), umin)]) # lower bound of inequalities
         uineq_xu = np.hstack([np.kron(np.ones(Np + 1), xmax), np.kron(np.ones(Np), umax)]) # upper bound of inequalities
+
 
         Aineq_du = sparse.vstack([sparse.hstack([np.zeros((Np + 1) * nx), np.ones(nu), np.zeros((Np - 1) * nu)]),  # for u0 - u-1
                                   sparse.hstack([np.zeros((Np * nu, (Np+1) * nx)), -sparse.eye(Np * nu) + sparse.eye(Np * nu, k=1)])  # for uk - uk-1, k=1...Np
                                   ]
                                  )
+        Aineq_du = sparse.hstack([Aineq_du, sparse.coo_matrix((Aineq_du.shape[0], n_eps))])
 
         uineq_du = np.ones((Np+1) * nu)*Dumax
         uineq_du[0:nu] += self.uminus1[0:nu]
@@ -279,16 +300,28 @@ class MPCController:
         u = np.hstack([ueq_dyn, uineq_xu, uineq_du])
 
         # assign all
-        self.P = sparse.block_diag([P_X, P_U])
-        self.q = np.hstack([q_X, q_U])
+        self.P = sparse.block_diag([P_X, P_U, P_eps])
+        self.q = np.hstack([q_X, q_U, q_eps])
+
         self.A = A
         self.l = l
         self.u = u
 
-import time
-import matplotlib.pyplot as plt
+        self.P_x = P_X
+        self.P_U = P_U
+        self.P_eps = P_eps
+
+        self.Aineq_xu = Aineq_xu
+        self.Aineq_du = Aineq_du
+        self.leq_dyn = leq_dyn
+        self.lineq_xu = lineq_xu
+        self.lineq_du = lineq_du
+
+
 
 if __name__ == '__main__':
+    import time
+    import matplotlib.pyplot as plt
     # Constants #
     Ts = 0.2 # sampling time (s)
     M = 2    # mass (Kg)
@@ -355,7 +388,6 @@ if __name__ == '__main__':
     tsim = np.arange(0,nsim)*Ts
 
     time_start = time.time()
-
     xstep = x0
     for i in range(nsim):
         uMPC = K.step()
