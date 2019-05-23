@@ -167,6 +167,11 @@ class MPCController:
         Dumax = self.Dumax
         QDu = self.QDu
         uref = self.uref
+        #Qeps = self.Qeps
+        Qx = self.Qx
+        QxN = self.QxN
+        Qu = self.Qu
+        xref = self.xref
 
         self.l[:nx] = -x0_rh
         self.u[:nx] = -x0_rh

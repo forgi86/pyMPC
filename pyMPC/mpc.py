@@ -120,7 +120,7 @@ class MPCController:
         self.x0_rh = self.x0
         self.uminus1_rh = self.uminus1
         self._compute_QP_matrices_()
-        self.prob.setup(self.P, self.q, self.A, self.l, self.u, warm_start=True, verbose=False, eps_abs=1e-4, eps_rel=1e-4)
+        self.prob.setup(self.P, self.q, self.A, self.l, self.u, warm_start=True, verbose=False, eps_abs=1e-3, eps_rel=1e-3)
 
     def step(self):
 
