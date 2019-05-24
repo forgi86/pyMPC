@@ -122,7 +122,7 @@ class MPCController:
         self._compute_QP_matrices_()
         self.prob.setup(self.P, self.q, self.A, self.l, self.u, warm_start=True, verbose=False, eps_abs=1e-3, eps_rel=1e-3)
 
-    def step(self):
+    def step(self, return_x_seq=False):
 
         Np = self.Np
         nx = self.nx
@@ -138,9 +138,19 @@ class MPCController:
         # Extract first control input to the plant
         uMPC = res.x[(Np+1)*nx:(Np+1)*nx + nu]
 
+        info = {}
+        if return_x_seq:
+            seq_X = res.x[0:(Np+1)*nx]
+            seq_X = seq_X.reshape(-1,nx)
+            info['x_seq'] = seq_X
         self.uminus1_rh = uMPC
         self.res = res
-        return uMPC
+
+        if len(info) == 0:
+            return uMPC\
+
+        else:
+            return uMPC, info
 
     def update(self,x,u=None):
         self.x0_rh = x
