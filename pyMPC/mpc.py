@@ -218,9 +218,11 @@ class MPCController:
         else:
             pass
 
-        q_eps = np.zeros((Np+1)*nx)
-        self.q = np.hstack([q_X, q_U, q_eps])
-#        self.q = np.hstack([q_X, q_U])
+        if self.SOFT_ON:
+            q_eps = np.zeros((Np+1)*nx)
+            self.q = np.hstack([q_X, q_U, q_eps])
+        else:
+            self.q = np.hstack([q_X, q_U])
 
         self.prob.update(l=self.l, u=self.u, q=self.q)
 
@@ -277,8 +279,9 @@ class MPCController:
         else:
             pass
 
-        P_eps = sparse.kron(np.eye((Np+1)), Qeps)
-        q_eps = np.zeros((Np+1)*nx)
+        if self.SOFT_ON:
+            P_eps = sparse.kron(np.eye((Np+1)), Qeps)
+            q_eps = np.zeros((Np+1)*nx)
 
         # Linear constraints
 
@@ -288,19 +291,22 @@ class MPCController:
 
         n_eps = (Np + 1) * nx
         Aeq_dyn = sparse.hstack([Ax, Bu])
-        Aeq_dyn = sparse.hstack([Aeq_dyn, sparse.coo_matrix((Aeq_dyn.shape[0], n_eps))]) # For soft constraints slack variables
+        if self.SOFT_ON:
+            Aeq_dyn = sparse.hstack([Aeq_dyn, sparse.coo_matrix((Aeq_dyn.shape[0], n_eps))]) # For soft constraints slack variables
 
         leq_dyn = np.hstack([-x0, np.zeros(Np * nx)])
         ueq_dyn = leq_dyn # for equality constraints -> upper bound  = lower bound!
 
         # - bounds on x
         Aineq_x = sparse.hstack([sparse.eye((Np + 1) * nx), sparse.coo_matrix(((Np+1)*nx, Np*nu))])
-        Aineq_x = sparse.hstack([Aineq_x, sparse.eye(n_eps)]) # For soft constraints slack variables
+        if self.SOFT_ON:
+            Aineq_x = sparse.hstack([Aineq_x, sparse.eye(n_eps)]) # For soft constraints slack variables
         lineq_x = np.kron(np.ones(Np + 1), xmin) # lower bound of inequalities
         uineq_x = np.kron(np.ones(Np + 1), xmax) # upper bound of inequalities
 
         Aineq_u = sparse.hstack([sparse.coo_matrix((Np*nu, (Np+1)*nx)), sparse.eye(Np * nu)])
-        Aineq_u = sparse.hstack([Aineq_u, sparse.coo_matrix((Aineq_u.shape[0], n_eps))]) # For soft constraints slack variables
+        if self.SOFT_ON:
+            Aineq_u = sparse.hstack([Aineq_u, sparse.coo_matrix((Aineq_u.shape[0], n_eps))]) # For soft constraints slack variables
         lineq_u = np.kron(np.ones(Np), umin)     # lower bound of inequalities
         uineq_u = np.kron(np.ones(Np), umax)     # upper bound of inequalities
 
@@ -310,7 +316,8 @@ class MPCController:
                                   sparse.hstack([np.zeros((Np * nu, (Np+1) * nx)), -sparse.eye(Np * nu) + sparse.eye(Np * nu, k=1)])  # for uk - uk-1, k=1...Np
                                   ]
                                  )
-        Aineq_du = sparse.hstack([Aineq_du, sparse.coo_matrix((Aineq_du.shape[0], n_eps))])
+        if self.SOFT_ON:
+            Aineq_du = sparse.hstack([Aineq_du, sparse.coo_matrix((Aineq_du.shape[0], n_eps))])
 
         uineq_du = np.ones((Np+1) * nu)*Dumax
         uineq_du[0:nu] += self.uminus1[0:nu]
@@ -327,24 +334,28 @@ class MPCController:
         #A = sparse.vstack([Aeq_dyn, Aineq_x, Aineq_u, Aineq_du, Aineq_eps_pos]).tocsc()
         #l = np.hstack([leq_dyn, lineq_x, lineq_u, lineq_du, lineq_eps_pos])
         #u = np.hstack([ueq_dyn, uineq_x, uineq_u, uineq_du, uineq_eps_pos])
+
         A = sparse.vstack([Aeq_dyn, Aineq_x, Aineq_u, Aineq_du]).tocsc()
         l = np.hstack([leq_dyn, lineq_x, lineq_u, lineq_du])
         u = np.hstack([ueq_dyn, uineq_x, uineq_u, uineq_du])
 
         # assign all
-        self.P = sparse.block_diag([P_X, P_U, P_eps])
-        self.q = np.hstack([q_X, q_U, q_eps])
+        if self.SOFT_ON:
+            self.P = sparse.block_diag([P_X, P_U, P_eps])
+            self.q = np.hstack([q_X, q_U, q_eps])
+        else:
+            self.P = sparse.block_diag([P_X, P_U])
+            self.q = np.hstack([q_X, q_U])
 
         self.A = A
         self.l = l
         self.u = u
 
-        self.P_x = P_X
-        self.P_U = P_U
-        self.P_eps = P_eps
-
         # Debug assignments
 
+#        self.P_x = P_X
+#        self.P_U = P_U
+#        self.P_eps = P_eps
         #self.Aineq_du = Aineq_du
         #self.leq_dyn = leq_dyn
         #self.lineq_du = lineq_du
