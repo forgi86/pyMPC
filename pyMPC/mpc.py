@@ -2,7 +2,7 @@ import numpy as np
 import scipy as sp
 import scipy.sparse as sparse
 import osqp
-
+import warnings
 
 class MPCController:
     """ This class implements an MPC controller
@@ -102,6 +102,8 @@ class MPCController:
         self.eps_feas = eps_feas
         self.Qeps = eps_feas * sparse.eye(self.nx)
 
+        self.u_failure = self.uref # value provided when the MPC solver fails.
+
         self.JX_ON = True
         self.JU_ON = True
         self.JDU_ON = True
@@ -133,8 +135,10 @@ class MPCController:
         nu = self.nu
 
         # Extract first control input to the plant
-        uMPC = self.res.x[(Np+1)*nx:(Np+1)*nx + nu]
-
+        if self.res.info.status != 'solved':
+            uMPC = self.res.x[(Np+1)*nx:(Np+1)*nx + nu]
+        else:
+            uMPC = self.u_failure
         # Return additional info?
         info = {}
         if return_x_seq:
@@ -164,7 +168,8 @@ class MPCController:
 
         # Check solver status
         if self.res.info.status != 'solved':
-            raise ValueError('OSQP did not solve the problem!')
+            warnings.warn('OSQP did not solve the problem!')
+            #raise ValueError('OSQP did not solve the problem!')
 
     def __controller_function__(self, x, u):
         """ This function is meant to be used for debug only.
