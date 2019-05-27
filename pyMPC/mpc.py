@@ -250,7 +250,8 @@ class MPCController:
         # - quadratic objective
 
         # Filling P and q for J_X
-        P_X = sparse.kron(sparse.eye((Np + 1) * nx), 0)  # x0...xN
+        #P_X = sparse.kron(sparse.eye((Np + 1) * nx), 0)  # x0...xN
+        P_X = sparse.csc_matrix(((Np+1)*nx, (Np+1)*nx))
         q_X = np.zeros((Np + 1) * nx)  # x_N
         if self.JX_ON:
             P_X += sparse.block_diag([sparse.kron(sparse.eye(Np), Qx),   # x0...x_N-1
@@ -261,7 +262,8 @@ class MPCController:
             pass
 
         # Filling P and q for J_U
-        P_U = sparse.kron(sparse.eye((Np)*nu),0)
+        #P_U = sparse.kron(sparse.eye((Np)*nu),0)
+        P_U = sparse.csc_matrix((Np*nu, Np*nu))
         q_U = np.zeros(Np*nu)
         if self.JU_ON:
             P_U += sparse.kron(sparse.eye(Np), Qu)
@@ -290,21 +292,21 @@ class MPCController:
         n_eps = (Np + 1) * nx
         Aeq_dyn = sparse.hstack([Ax, Bu])
         if self.SOFT_ON:
-            Aeq_dyn = sparse.hstack([Aeq_dyn, sparse.coo_matrix((Aeq_dyn.shape[0], n_eps))]) # For soft constraints slack variables
+            Aeq_dyn = sparse.hstack([Aeq_dyn, sparse.csc_matrix((Aeq_dyn.shape[0], n_eps))]) # For soft constraints slack variables
 
         leq_dyn = np.hstack([-x0, np.zeros(Np * nx)])
         ueq_dyn = leq_dyn # for equality constraints -> upper bound  = lower bound!
 
         # - bounds on x
-        Aineq_x = sparse.hstack([sparse.eye((Np + 1) * nx), sparse.coo_matrix(((Np+1)*nx, Np*nu))])
+        Aineq_x = sparse.hstack([sparse.eye((Np + 1) * nx), sparse.csc_matrix(((Np+1)*nx, Np*nu))])
         if self.SOFT_ON:
             Aineq_x = sparse.hstack([Aineq_x, sparse.eye(n_eps)]) # For soft constraints slack variables
         lineq_x = np.kron(np.ones(Np + 1), xmin) # lower bound of inequalities
         uineq_x = np.kron(np.ones(Np + 1), xmax) # upper bound of inequalities
 
-        Aineq_u = sparse.hstack([sparse.coo_matrix((Np*nu, (Np+1)*nx)), sparse.eye(Np * nu)])
+        Aineq_u = sparse.hstack([sparse.csc_matrix((Np*nu, (Np+1)*nx)), sparse.eye(Np * nu)])
         if self.SOFT_ON:
-            Aineq_u = sparse.hstack([Aineq_u, sparse.coo_matrix((Aineq_u.shape[0], n_eps))]) # For soft constraints slack variables
+            Aineq_u = sparse.hstack([Aineq_u, sparse.csc_matrix((Aineq_u.shape[0], n_eps))]) # For soft constraints slack variables
         lineq_u = np.kron(np.ones(Np), umin)     # lower bound of inequalities
         uineq_u = np.kron(np.ones(Np), umax)     # upper bound of inequalities
 
@@ -315,7 +317,7 @@ class MPCController:
                                   ]
                                  )
         if self.SOFT_ON:
-            Aineq_du = sparse.hstack([Aineq_du, sparse.coo_matrix((Aineq_du.shape[0], n_eps))])
+            Aineq_du = sparse.hstack([Aineq_du, sparse.csc_matrix((Aineq_du.shape[0], n_eps))])
 
         uineq_du = np.ones((Np+1) * nu)*Dumax
         uineq_du[0:nu] += self.uminus1[0:nu]

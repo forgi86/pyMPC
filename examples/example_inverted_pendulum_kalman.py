@@ -196,5 +196,5 @@ if __name__ == '__main__':
         ax.legend()
 
 
-    fig,axes = plt.subplots(1,1, figsize=(10,10))
-    axes.hist(t_MPC_CPU*1000)
+#    fig,axes = plt.subplots(1,1, figsize=(10,10))
+#    axes.hist(t_MPC_CPU*1000)
