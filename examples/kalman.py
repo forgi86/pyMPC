@@ -31,6 +31,51 @@ def kalman_filter_simple(A, B, C, D, Qn, Rn):
     return L,P,W
 
 
+class LinearStateEstimator:
+    def __init__(self, x0, A, B, C, D, L):
+
+        self.x = x0
+        self.y = C @ x0
+        self.A = A
+        self.B = B
+        self.C = C
+        self.D = D
+        self.L = L
+
+        self.nx = __first_dim__(A)
+        self.nu = __second_dim__(B) # number of controlled inputs
+        self.ny = __first_dim__(C)
+
+    def out_y(self,u):
+        return self.y
+
+    def predict(self, u):
+        self.x = self.A @ self.x + self.B @u  # x[k+1|k]
+        self.y = self.C @ self.x + self.D @u
+        return self.x
+
+    def update(self, y_meas):
+        self.x = self.x + self.L @ (y_meas - self.y)  # x[k+1|k+1]
+        return self.x
+
+    def sim(self, u_seq, x=None):
+
+        if x is None:
+            x = self.x
+        Np = __first_dim__(u_seq)
+        nu = __second_dim__(u_seq)
+        assert(nu == self.nu)
+
+        y = np.zeros((Np,self.ny))
+        x_tmp = x
+        for i in range(Np):
+            u_tmp = u_seq[i]
+            y[i,:] = self.C @ x_tmp + self.D @ u_tmp
+            x_tmp = self.A @x_tmp + self.B @ u_tmp
+
+        #y[Np] = self.C @ x_tmp + self.D @ u_tmp # not really true for D. Here it is 0 anyways
+        return y
+
 if __name__ == '__main__':
 
     # Constants #
