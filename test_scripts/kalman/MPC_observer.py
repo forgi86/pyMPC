@@ -125,7 +125,7 @@ if __name__ == '__main__':
         # Estimator
         yest_step = Cd.dot(x_step_est)
         # MPC
-        uMPC = K.step() # MPC step (u_k value)
+        uMPC = K.output() # MPC step (u_k value)
 
         # Save output for step i
         y_vec[i,:] = y_step

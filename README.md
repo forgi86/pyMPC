@@ -34,7 +34,7 @@ K.setup()
 
 xstep = x0
 for i in range(nsim): 
-  uMPC = K.step()
+  uMPC = K.output()
   xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # system simulation steps
   K.update(xstep) # update with measurement
 ```

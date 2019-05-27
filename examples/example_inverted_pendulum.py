@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
         # MPC update and step. Could be in just one function call
         K.update(xstep, uMPC) # update with measurement
-        uMPC = K.step() # MPC step (u_k value)
+        uMPC = K.output() # MPC step (u_k value)
         usim[i,:] = uMPC
 
         # System simulation step

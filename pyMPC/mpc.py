@@ -108,6 +108,7 @@ class MPCController:
         self.SOFT_ON = True
 
         self.prob = osqp.OSQP()
+        self.res = None
         self.P = None
         self.q = None
         self.A = None
@@ -116,63 +117,60 @@ class MPCController:
         self.x0_rh = None
         self.uminus1_rh = None
 
-    def setup(self):
+    def setup(self, solve=True):
         self.x0_rh = self.x0
         self.uminus1_rh = self.uminus1
         self._compute_QP_matrices_()
         self.prob.setup(self.P, self.q, self.A, self.l, self.u, warm_start=True, verbose=False, eps_abs=1e-3, eps_rel=1e-3)
 
-    def step(self, return_x_seq=False):
+        if solve:
+            self.solve()
+
+    def output(self, return_x_seq=False):
 
         Np = self.Np
         nx = self.nx
         nu = self.nu
 
-        # Solve
-        res = self.prob.solve()
-
-        # Check solver status
-        if res.info.status != 'solved':
-            raise ValueError('OSQP did not solve the problem!')
-
         # Extract first control input to the plant
-        uMPC = res.x[(Np+1)*nx:(Np+1)*nx + nu]
+        uMPC = self.res.x[(Np+1)*nx:(Np+1)*nx + nu]
 
+        # Return additional info?
         info = {}
         if return_x_seq:
-            seq_X = res.x[0:(Np+1)*nx]
+            seq_X = self.res.x[0:(Np+1)*nx]
             seq_X = seq_X.reshape(-1,nx)
             info['x_seq'] = seq_X
         self.uminus1_rh = uMPC
-        self.res = res
 
         if len(info) == 0:
-            return uMPC\
+            return uMPC
 
         else:
             return uMPC, info
 
-    def update(self,x,u=None):
+    def update(self,x,u=None,solve=True):
         self.x0_rh = x
         if u is not None:
-            self.uminus1_rh = u # otherwise it is just the uMPC updated in the step function!
+            self.uminus1_rh = u # otherwise it is just the uMPC updated from the previous step() call
         self._update_QP_matrices_()
+        if solve:
+            self.solve()
+
+    def solve(self):
+        self.res = self.prob.solve()
+
+        # Check solver status
+        if self.res.info.status != 'solved':
+            raise ValueError('OSQP did not solve the problem!')
 
     def __controller_function__(self, x, u):
         """ This function is meant to be used for debug only.
         """
-        self.x0_rh = x
-        self.uminus1_rh = u
-        self._update_QP_matrices_()
-        # Check solver status
 
-        res = self.prob.solve()
-
-        if res.info.status != 'solved':
-            raise ValueError('OSQP did not solve the problem!')
-
-        # Extract first control input to the plant
-        uMPC = res.x[-self.Np*self.nu:-(self.Np - 1)*self.nu]
+        self.update(x,u)
+        self.solve()
+        uMPC = self.output()
 
         return uMPC
 
@@ -421,6 +419,7 @@ if __name__ == '__main__':
                       Qx=Qx, QxN=QxN, Qu=Qu,QDu=QDu,
                       xmin=xmin,xmax=xmax,umin=umin,umax=umax,Dumin=Dumin,Dumax=Dumax)
     K.setup()
+    K.solve()
 
     # Simulate in closed loop
     [nx, nu] = Bd.shape # number of states and number or inputs
@@ -433,9 +432,10 @@ if __name__ == '__main__':
     time_start = time.time()
     xstep = x0
     for i in range(nsim):
-        uMPC = K.step()
+        uMPC = K.output()
         xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # system step
         K.update(xstep) # update with measurement
+        K.solve()
         xsim[i,:] = xstep
         usim[i,:] = uMPC
 

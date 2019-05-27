@@ -129,7 +129,7 @@ if __name__ == '__main__':
 
         # MPC update and step. Could be in just one function call
         K.update(xstep_est, uMPC) # update with measurement
-        uMPC,infoMPC = K.step(return_x_seq=True) # MPC step (u_k value)
+        uMPC,infoMPC = K.output(return_x_seq=True) # MPC step (u_k value)
         usim[i,:] = uMPC
         xpred[i, :, :] = infoMPC['x_seq'] # save predictions for further use
 

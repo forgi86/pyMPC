@@ -3,7 +3,7 @@ import scipy.sparse as sparse
 import time
 import matplotlib.pyplot as plt
 from pyMPC.mpc import MPCController
-
+from scipy.integrate import ode
 
 
 if __name__ == '__main__':
@@ -11,14 +11,6 @@ if __name__ == '__main__':
     Ts = 0.2 # sampling time (s)
     M = 2    # mass (Kg)
     b = 0.3  # friction coefficient (N*s/m)
-
-    Ad = sparse.csc_matrix([
-        [1.0, Ts],
-        [0,  1.0 -b/M*Ts]
-    ])
-    Bd = sparse.csc_matrix([
-      [0.0],
-      [Ts/M]])
 
     # Continous-time matrices (just for reference)
     Ac = np.array([
@@ -29,6 +21,17 @@ if __name__ == '__main__':
         [0.0],
         [1/M]
     ])
+
+    def f_ODE(t,x,u):
+        der = Ac @ x + Bc @ u
+        return der
+
+    [nx, nu] = Bc.shape  # number of states and number or inputs
+
+    # Brutal forward euler discretization
+    Ad = np.eye(nx) + Ac*Ts
+    Bd = Bc*Ts
+
 
     # Reference input and states
     pref = 7.0
@@ -55,6 +58,9 @@ if __name__ == '__main__':
 
     # Initial state
     x0 = np.array([0.1, 0.2]) # initial state
+    system_dyn = ode(f_ODE).set_integrator('vode', method='bdf')
+    system_dyn.set_initial_value(x0, 0)
+    system_dyn.set_f_params(0.0)
 
     # Prediction horizon
     Np = 20
@@ -81,10 +87,13 @@ if __name__ == '__main__':
 
         # MPC update and step. Could be in just one function call
         K.update(xstep, uMPC) # update with measurement
-        uMPC = K.step() # MPC step (u_k value)
+        uMPC = K.output() # MPC step (u_k value)
         usim[i,:] = uMPC
 
-        xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # Real system step (x_k+1 value)
+        #xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # Real system step (x_k+1 value)
+        system_dyn.set_f_params(uMPC) # set current input value to uMPC
+        system_dyn.integrate(system_dyn.t + Ts)
+        xstep = system_dyn.y
 
     time_sim = time.time() - time_start
 

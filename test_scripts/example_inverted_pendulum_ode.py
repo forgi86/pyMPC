@@ -2,6 +2,7 @@ import numpy as np
 import scipy.sparse as sparse
 import time
 import matplotlib.pyplot as plt
+from scipy.integrate import ode
 from pyMPC.mpc import MPCController
 
 if __name__ == '__main__':
@@ -29,6 +30,23 @@ if __name__ == '__main__':
     ])
 
     [nx, nu] = Bc.shape # number of states and number or inputs
+
+    # Nonlinear dynamics ODE
+    def f_ODE(t,x,u):
+        #print(x)
+        F = u
+        v = x[1]
+        theta = x[2]
+        omega = x[3]
+        der = np.zeros(nx)
+        der[0] = v
+        der[1] = (m * l * np.sin(theta) * omega ** 2 - m * g * np.sin(theta) * np.cos(theta) + m * ftheta * np.cos(
+            theta) * omega + F - b * v) / (M + m * (1 - np.cos(theta) ** 2))
+        der[2] = omega
+        der[3] = ((M + m) * (g * np.sin(theta) - ftheta * omega) - m * l * omega ** 2 * np.sin(theta) * np.cos(
+            theta) - (
+                          F - b * v) * np.cos(theta)) / (l * (M + m * (1 - np.cos(theta) ** 2)))
+        return der
 
     # Brutal forward euler discretization
     Ad = np.eye(nx) + Ac*Ts
@@ -58,6 +76,9 @@ if __name__ == '__main__':
     # Initial state
     phi0 = 15*2*np.pi/360
     x0 = np.array([0, 0, phi0, 0]) # initial state
+    system_dyn = ode(f_ODE).set_integrator('vode', method='bdf')
+    system_dyn.set_initial_value(x0, 0)
+    system_dyn.set_f_params(0.0)
 
     # Prediction horizon
     Np = 20
@@ -89,17 +110,9 @@ if __name__ == '__main__':
         usim[i,:] = uMPC
 
         # System simulation step
-        F = uMPC
-        v = xstep[1]
-        theta = xstep[2]
-        omega = xstep[3]
-        der = np.zeros(nx)
-        der[0] = v
-        der[1] = (m*l*np.sin(theta)*omega**2 -m*g*np.sin(theta)*np.cos(theta)  + m*ftheta*np.cos(theta)*omega + F - b*v)/(M+m*(1-np.cos(theta)**2));
-        der[2] = omega
-        der[3] = ((M+m)*(g*np.sin(theta) - ftheta*omega) - m*l*omega**2*np.sin(theta)*np.cos(theta) -(F-b*v)*np.cos(theta))/(l*(M + m*(1-np.cos(theta)**2)) );
-        # Forward euler step
-        xstep = xstep + der*Ts
+        system_dyn.set_f_params(uMPC) # set current input value
+        system_dyn.integrate((i+1)*Ts)
+        xstep = system_dyn.y
 
     time_sim = time.time() - time_start
 

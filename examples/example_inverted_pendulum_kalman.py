@@ -3,6 +3,7 @@ import scipy.sparse as sparse
 import time
 import matplotlib.pyplot as plt
 from pyMPC.mpc import MPCController
+from scipy.integrate import ode
 from kalman import kalman_filter_simple, LinearStateEstimator
 
 if __name__ == '__main__':
@@ -15,7 +16,7 @@ if __name__ == '__main__':
     l = 0.3
     g = 9.81
 
-    Ts = 50e-3
+    Ts = 5e-3
 
     Ac =np.array([[0,       1,          0,                  0],
                   [0,       -b/M,       -(g*m)/M,           (ftheta*m)/M],
@@ -37,14 +38,13 @@ if __name__ == '__main__':
     [nx, nu] = Bc.shape  # number of states and number or inputs
     ny = np.shape(Cc)[0]
 
-    [nx, nu] = Bc.shape # number of states and number or inputs
-
     # Nonlinear dynamics ODE
-    def f_ODE(x,u):
+    def f_ODE(t,x,u):
+        #print(x)
         F = u
-        v = x_step[1]
-        theta = x_step[2]
-        omega = x_step[3]
+        v = x[1]
+        theta = x[2]
+        omega = x[3]
         der = np.zeros(nx)
         der[0] = v
         der[1] = (m * l * np.sin(theta) * omega ** 2 - m * g * np.sin(theta) * np.cos(theta) + m * ftheta * np.cos(
@@ -62,8 +62,8 @@ if __name__ == '__main__':
     Dd = Dc
 
     # Standard deviation of the measurement noise on position and angle
-    std_npos = 1*0.005
-    std_nphi = 1*0.005
+    std_npos = 0*0.005
+    std_nphi = 0*0.005
 
     # Reference input and states
     xref = np.array([0.3, 0.0, 0.0, 0.0]) # reference state
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
     # Constraints
     xmin = np.array([-1.0, -100, -100, -100])
-    xmax = np.array([0.3,   100.0, 100, 100])
+    xmax = np.array([1.0,   100.0, 100, 100])
 
     umin = np.array([-20])
     umax = np.array([20])
@@ -86,9 +86,12 @@ if __name__ == '__main__':
     Qu = 0.0 * sparse.eye(1)        # Quadratic cost for u0, u1, ...., u_N-1
     QDu = 0.01 * sparse.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
 
-    # Initial state
+    # Initialize simulation system
     phi0 = 15*2*np.pi/360
     x0 = np.array([0, 0, phi0, 0]) # initial state
+    system_dyn = ode(f_ODE).set_integrator('vode', method='bdf')
+    system_dyn.set_initial_value(x0, 0)
+    system_dyn.set_f_params(0.0)
 
     # Basic Kalman filter design
     Q_kal = 10 * np.eye(nx)
@@ -96,9 +99,11 @@ if __name__ == '__main__':
     L, P, W = kalman_filter_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal)
     x0_est = x0
     KF = LinearStateEstimator(x0_est, Ad, Bd, Cd, Dd,L)
-    # Prediction horizon
-    Np = 20
 
+    # Prediction horizon
+    Np = 200
+
+    # Initialize controller
     K = MPCController(Ad,Bd,Np=Np, x0=x0,xref=xref,uminus1=uminus1,
                       Qx=Qx, QxN=QxN, Qu=Qu,QDu=QDu,
                       xmin=xmin,xmax=xmax,umin=umin,umax=umax,Dumin=Dumin,Dumax=Dumax,
@@ -110,63 +115,76 @@ if __name__ == '__main__':
     len_sim = 10  # simulation length (s)
     nsim = int(len_sim / Ts)  # simulation length(timesteps)
     x_vec = np.zeros((nsim, nx))
+    #x_vec_EA = np.zeros((nsim, nx))
+
     y_vec = np.zeros((nsim, ny))
     y_meas_vec = np.zeros((nsim, ny))
     y_est_vec = np.zeros((nsim, ny))
     x_est_vec = np.zeros((nsim, nx))
     u_vec = np.zeros((nsim, nu))
     t_vec = np.arange(0, nsim) * Ts
+    t_MPC_CPU = np.arange(0, nsim) * Ts
     x_MPC_pred = np.zeros((nsim, Np+1, nx)) # on-line predictions from the Kalman Filter
 
     time_start = time.time()
 
-    x_step = x0
     uMPC = uminus1
     y_step = None
     ymeas_step = None
+    #x_step = x0
     for i in range(nsim):
         # Output for step i
         # System
-        y_step = Cd.dot(x_step)  # y[i] from the system
+        y_step = Cd.dot(system_dyn.y)  # y[i] from the system
         ymeas_step = y_step
         ymeas_step[0] += std_npos * np.random.randn()
         ymeas_step[1] += std_nphi * np.random.randn()
         # Estimator
-        #KF.out_y(uMPC)
-        # MPC
-        uMPC,infoMPC = K.step(return_x_seq=True) # u[i] = k(\hat x[i]) possibly computed at time instant -1
+
+#        time_MPC_start = time.time()
+        uMPC,infoMPC = K.output(return_x_seq=True) # u[i] = k(\hat x[i]) possibly computed at time instant -1
+#        t_MPC_CPU[i] = time.time() - time_MPC_start
+
         x_MPC_pred[i, :, :] = infoMPC['x_seq']   # x_MPC_pred[i,i+1,...| possibly computed at time instant -1]
 
         # Save output for step i
         y_vec[i, :] = y_step # y[i]
         y_meas_vec[i,:] = ymeas_step # y_meas[i]
-        x_vec[i, :] = x_step  # x[i]
+        x_vec[i, :] = system_dyn.y  # x[i]
         y_est_vec[i,:] = KF.y  # \hat y[i|i-1]
         x_est_vec[i, :] = KF.x # \hat x[i|i-1]
         u_vec[i, :] = uMPC    # u[i]
+#        x_vec_EA[i,:] = x_step
 
         # Update i+1
         # System
-        der = f_ODE(x_step,uMPC)
-        x_step = x_step + der * Ts  # true system evolves to x[i+1]
-        #f_ODE_u = lambda x: f_ODE(x_step, uMPC)
+        system_dyn.set_f_params(uMPC) # set current input value to uMPC
+        system_dyn.integrate(system_dyn.t + Ts)
+        #x_step = system_dyn.y
+#        der = f_ODE(0,x_step,uMPC)
+        #x_step = x_step + der * Ts  # true system evolves to x[i+1]
+        #system_dyn.set_initial_value(x_step, 0)
 
         # Kalman filter: update and predict
         KF.update(ymeas_step) # \hat x[i|i]
         KF.predict(uMPC)    # \hat x[i+1|i]
 
-        # MPC update
+        # MPC update for step i+1
+        time_MPC_start = time.time()
         K.update(KF.x, uMPC)  # update with measurement (and possibly pre-compute u[i+1])
+        t_MPC_CPU[i] = time.time() - time_MPC_start
 
     time_sim = time.time() - time_start
 
     fig,axes = plt.subplots(3,1, figsize=(10,10))
     axes[0].plot(t_vec, x_vec[:,0], "k", label='p')
     axes[0].plot(t_vec, xref[0]*np.ones(np.shape(t_vec)), "r--", label="p_ref")
+    #axes[0].plot(t_vec, x_vec_EA[:,0]*np.ones(np.shape(t_vec)), "r--", label="p_EA")
     axes[0].set_title("Position (m)")
 
     axes[1].plot(t_vec, x_vec[:,2]*360/2/np.pi, label="phi")
     axes[1].plot(t_vec, xref[2]*360/2/np.pi*np.ones(np.shape(t_vec)), "r--", label="phi_ref")
+    #axes[1].plot(t_vec, x_vec_EA[:,2]*np.ones(np.shape(t_vec)), "r--", label="p_EA")
     axes[1].set_title("Angle (deg)")
 
     axes[2].plot(t_vec, u_vec[:,0], label="u")
@@ -178,3 +196,5 @@ if __name__ == '__main__':
         ax.legend()
 
 
+    fig,axes = plt.subplots(1,1, figsize=(10,10))
+    axes.hist(t_MPC_CPU*1000)

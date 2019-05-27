@@ -1,8 +1,8 @@
-# conda install -c conda-forge slycot
-
 import control
 import numpy as np
 import scipy as sp
+
+# conda install -c conda-forge slycot
 
 
 def __first_dim__(X):
