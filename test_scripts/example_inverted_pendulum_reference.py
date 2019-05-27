@@ -39,7 +39,7 @@ if __name__ == '__main__':
         v = x[1]
         theta = x[2]
         omega = x[3]
-        der = np.zeros(nx)
+        der = np.zeros(4)
         der[0] = v
         der[1] = (m * l * np.sin(theta) * omega ** 2 - m * g * np.sin(theta) * np.cos(theta) + m * ftheta * np.cos(
             theta) * omega + F - b * v) / (M + m * (1 - np.cos(theta) ** 2))
@@ -56,9 +56,10 @@ if __name__ == '__main__':
     # Reference input and states
     t_ref_vec = np.array([0.0,  10.0,   20.0,   30.0,   40.0])
     p_ref_vec = np.array([0.0,  0.3,    0.3,    0.0,    0.0])
-    r_p = interp1d(t_ref_vec, p_ref_vec, kind='zero')
+    rp_fun = interp1d(t_ref_vec, p_ref_vec, kind='zero')
+    r_fun = lambda t: np.array([rp_fun(t), 0.0, 0.0, 0.0])
 
-    xref = np.array([r_p(0), 0.0, 0.0, 0.0]) # reference state
+    xref = np.array([rp_fun(0), 0.0, 0.0, 0.0]) # reference state
     uref = np.array([0.0])    # reference input
     uminus1 = np.array([0.0])     # input at time step negative one - used to penalize the first delta u at time instant 0. Could be the same as uref.
 
@@ -111,7 +112,7 @@ if __name__ == '__main__':
         xsim[i,:] = system_dyn.y
 
         # MPC update and step. Could be in just one function call
-        xref = np.array([r_p(t_step), 0.0, 0.0, 0.0])  # reference state
+        xref = r_fun(t_step)  # reference state
         K.update(system_dyn.y, uMPC, xref=xref) # update with measurement
         uMPC = K.output() # MPC step (u_k value)
         usim[i,:] = uMPC
@@ -137,9 +138,3 @@ if __name__ == '__main__':
     axes[2].plot(tsim, usim[:,0], label="u")
     axes[2].plot(tsim, uref*np.ones(np.shape(tsim)), "r--", label="u_ref")
     axes[2].set_title("Force (N)")
-
-    for ax in axes:
-        ax.grid(True)
-        ax.legend()
-
-
