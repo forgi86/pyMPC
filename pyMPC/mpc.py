@@ -8,12 +8,21 @@ class MPCController:
     """ This class implements an MPC controller
     Attributes
     ----------
-    x0 : array_like
-        Initial system state.
-    Ad : matrix_like
-        Discrete-time system matrix A.
-    Bd : matrix_like
-        Discrete-time system matrix B.
+    x0 : 1D array_like
+         Initial system state.
+    Ad : 2D array_like
+         Discrete-time system matrix A.
+    Bd : 2D array-like
+         Discrete-time system matrix B.
+    Np : int
+        Prediction horizon
+    xref : 1D array_like
+           State reference
+    uref : 1D array_like
+           Input reference
+    uminus1: 1D array_like
+             input value assumed at time instant -1
+
     ...
     """
     def __init__(self, Ad, Bd, Np=10,
@@ -102,6 +111,7 @@ class MPCController:
         self.eps_feas = eps_feas
         self.Qeps = eps_feas * sparse.eye(self.nx)
 
+        self.raise_error = False
         self.u_failure = self.uref # value provided when the MPC solver fails.
 
         self.JX_ON = True
@@ -135,10 +145,11 @@ class MPCController:
         nu = self.nu
 
         # Extract first control input to the plant
-        if self.res.info.status != 'solved':
+        if self.res.info.status == 'solved':
             uMPC = self.res.x[(Np+1)*nx:(Np+1)*nx + nu]
         else:
             uMPC = self.u_failure
+
         # Return additional info?
         info = {}
         if return_x_seq:
@@ -169,7 +180,8 @@ class MPCController:
         # Check solver status
         if self.res.info.status != 'solved':
             warnings.warn('OSQP did not solve the problem!')
-            #raise ValueError('OSQP did not solve the problem!')
+            if self.raise_error:
+                raise ValueError('OSQP did not solve the problem!')
 
     def __controller_function__(self, x, u):
         """ This function is meant to be used for debug only.
@@ -428,7 +440,6 @@ if __name__ == '__main__':
                       Qx=Qx, QxN=QxN, Qu=Qu,QDu=QDu,
                       xmin=xmin,xmax=xmax,umin=umin,umax=umax,Dumin=Dumin,Dumax=Dumax)
     K.setup()
-    K.solve()
 
     # Simulate in closed loop
     [nx, nu] = Bd.shape # number of states and number or inputs
