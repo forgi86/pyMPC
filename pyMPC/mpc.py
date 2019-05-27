@@ -149,10 +149,12 @@ class MPCController:
         else:
             return uMPC, info
 
-    def update(self,x,u=None,solve=True):
-        self.x0_rh = x
+    def update(self,x,u=None,xref=None,solve=True):
+        self.x0_rh = x # previous x0
         if u is not None:
             self.uminus1_rh = u # otherwise it is just the uMPC updated from the previous step() call
+        if xref is not None:
+            self.xref = xref # TODO: check that new reference is != old reference, do a minimal update of the QP matrices to improve speed
         self._update_QP_matrices_()
         if solve:
             self.solve()
