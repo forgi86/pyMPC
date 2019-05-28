@@ -6,25 +6,44 @@ import warnings
 
 class MPCController:
     """ This class implements an MPC controller
+
     Attributes
     ----------
-    x0 : 1D array_like
-         Initial system state.
     Ad : 2D array_like
-         Discrete-time system matrix A.
+         Discrete-time system matrix A of size nx * nx.
     Bd : 2D array-like
          Discrete-time system matrix B.
+    x0 : 1D array_like
+         System state at time instant 0.
+    xref : 1D array-like
+           System state reference (aka target, set-point)
+    uref : 1D array-like
+           System input reference
+    uminus1 : 1D array_like
+             Input value assumed at time instant -1
+    Qx : 2D array_like
+         State weight matrix
+    Qu : 2D array_like
+         Input weight matrix
+    QDu : 2D array_like
+         Input delta weight matrix
     Np : int
         Prediction horizon
-    xref : 1D array_like
-           State reference
-    uref : 1D array_like
-           Input reference
-    uminus1: 1D array_like
-             input value assumed at time instant -1
-
-    ...
+    xmin : 1D array_like
+           State minimum value
+    xmin : 1D array_like
+           State maximum value
+    umin : 1D array_like
+           Input minimum value
+    umax : 1D array_like
+           Input maximum value
+    Dumin : 1D array_like
+           Input variation minimum value
+    Dumax : 1D array_like
+           Input variation maximum value
+    eps_feas : Scale factor for the matrix Q_eps
     """
+
     def __init__(self, Ad, Bd, Np=10,
                  x0=None, xref=None, uref=None, uminus1=None,
                  Qx=None, QxN=None, Qu=None, QDu=None,

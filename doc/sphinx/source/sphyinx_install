@@ -1,0 +1,2 @@
+sudo add-apt-repository ppa:builds/sphinxsearch-stable
+sudo apt-get install sphinxsearch
