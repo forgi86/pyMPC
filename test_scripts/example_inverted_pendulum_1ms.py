@@ -16,7 +16,9 @@ if __name__ == '__main__':
     l = 0.3
     g = 9.81
 
-    Ts = 25e-3
+    Ts_MPC = 25e-3
+    Ts_sim = 1e-3
+    ratio_Ts = int(Ts_MPC//Ts_sim)
 
     Ac =np.array([[0,       1,          0,                  0],
                   [0,       -b/M,       -(g*m)/M,           (ftheta*m)/M],
@@ -50,8 +52,8 @@ if __name__ == '__main__':
         return der
 
     # Brutal forward euler discretization
-    Ad = np.eye(nx) + Ac*Ts
-    Bd = Bc*Ts
+    Ad = np.eye(nx) + Ac * Ts_MPC
+    Bd = Bc * Ts_MPC
 
     # Reference input and states
     t_ref_vec = np.array([0.0,  10.0,   20.0,   30.0,   40.0])
@@ -99,44 +101,64 @@ if __name__ == '__main__':
     # Simulate in closed loop
     [nx, nu] = Bd.shape # number of states and number or inputs
     len_sim = 40 # simulation length (s)
-    nsim = int(len_sim/Ts) # simulation length(timesteps)
-    xsim = np.zeros((nsim,nx))
-    usim = np.zeros((nsim,nu))
-    tsim = np.arange(0,nsim)*Ts
+    nsim = int(len_sim / Ts_MPC) # simulation length(timesteps)
+    x_vec = np.zeros((nsim, nx))
+    xref_vec = np.zeros((nsim, nx))
+    u_vec = np.zeros((nsim, nu))
+    t_vec = np.zeros((nsim,1))
 
+    nsim_fast = int(len_sim / Ts_sim)
+    xsim_fast = np.zeros((nsim_fast, nx)) # finer integration grid for performance evaluation
+    xref_fast = np.zeros((nsim_fast, nx)) # finer integration grid for performance evaluatio
+    t_vec_fast = np.zeros((nsim_fast, 1))
     time_start = time.time()
 
     t_step = t0
-    uMPC =  uminus1
-    for i in range(nsim):
-        xsim[i,:] = system_dyn.y
+    uMPC = None
+    idx_MPC = 0 # slow index increasing for the multiples of Ts_MPC
+    for idx_fast in range(nsim_fast):
+        idx_MPC = idx_fast // ratio_Ts
+        run_MPC = (idx_fast % ratio_Ts) == 0
+
+        xref_fast[idx_fast, :] = r_fun(t_step)
+        xsim_fast[idx_fast, :] = system_dyn.y
+        t_vec_fast[idx_fast, :] = t_step
+        if run_MPC: # it is also a step of the simulation at rate Ts_MPC
+            x_vec[idx_MPC, :] = system_dyn.y
+            t_vec[idx_MPC, :] = t_step
 
         # MPC update and step. Could be in just one function call
-        xref = r_fun(t_step)  # reference state
-        K.update(system_dyn.y, uMPC, xref=xref) # update with measurement
-        uMPC = K.output() # MPC step (u_k value)
-        usim[i,:] = uMPC
+        if run_MPC:
+            xref = r_fun(t_step)  # reference state
+            xref_vec[idx_MPC,:] = xref
+            K.update(system_dyn.y, uMPC, xref=xref) # update with measurement
+            uMPC = K.output() # MPC step (u_k value)
+            u_vec[idx_MPC, :] = uMPC
 
         # System simulation step
-        system_dyn.set_f_params(uMPC) # set current input value
-        system_dyn.integrate(t_step + Ts)
+        if run_MPC:
+            system_dyn.set_f_params(uMPC) # set current input value
+
+        system_dyn.integrate(t_step + Ts_sim)
 
         # Update simulation time
-        t_step += Ts
+        t_step += Ts_sim
+
+        idx_MPC += 1
 
     time_sim = time.time() - time_start
 
     fig,axes = plt.subplots(3,1, figsize=(10,10))
-    axes[0].plot(tsim, xsim[:,0], "k", label='p')
-    axes[0].plot(tsim, xref[0]*np.ones(np.shape(tsim)), "r--", label="p_ref")
+    axes[0].plot(t_vec, x_vec[:, 0], "k", label='p')
+    axes[0].plot(t_vec, xref_vec[:,0], "r--", label="p_ref")
     axes[0].set_title("Position (m)")
 
-    axes[1].plot(tsim, xsim[:,2]*360/2/np.pi, label="phi")
-    axes[1].plot(tsim, xref[2]*360/2/np.pi*np.ones(np.shape(tsim)), "r--", label="phi_ref")
+    axes[1].plot(t_vec, x_vec[:, 2] * 360 / 2 / np.pi, label="phi")
+    axes[1].plot(t_vec, xref_vec[:,2] * 360 / 2 / np.pi, "r--", label="phi_ref")
     axes[1].set_title("Angle (deg)")
 
-    axes[2].plot(tsim, usim[:,0], label="u")
-    axes[2].plot(tsim, uref*np.ones(np.shape(tsim)), "r--", label="u_ref")
+    axes[2].plot(t_vec, u_vec[:, 0], label="u")
+    axes[2].plot(t_vec, uref * np.ones(np.shape(t_vec)), "r--", label="u_ref")
     axes[2].set_title("Force (N)")
 
     for ax in axes:
