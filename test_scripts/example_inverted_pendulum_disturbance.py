@@ -129,8 +129,9 @@ if __name__ == '__main__':
     t_vec = np.zeros((nsim,1))
 
     nsim_fast = int(len_sim / Ts_sim)
-    xsim_fast = np.zeros((nsim_fast, nx)) # finer integration grid for performance evaluation
-    xref_fast = np.zeros((nsim_fast, nx)) # finer integration grid for performance evaluatio
+    x_vec_fast = np.zeros((nsim_fast, nx)) # finer integration grid for performance evaluation
+    xref_vec_fast = np.zeros((nsim_fast, nx)) # finer integration grid for performance evaluatio
+    u_vec_fast = np.zeros((nsim_fast, nu))
     t_vec_fast = np.zeros((nsim_fast, 1))
     time_start = time.time()
 
@@ -141,9 +142,8 @@ if __name__ == '__main__':
         idx_MPC = idx_fast // ratio_Ts
         run_MPC = (idx_fast % ratio_Ts) == 0
 
-        xref_fast[idx_fast, :] = r_fun(t_step)
-        xsim_fast[idx_fast, :] = system_dyn.y
-        t_vec_fast[idx_fast, :] = t_step
+        xref_vec_fast[idx_fast, :] = r_fun(t_step)
+        x_vec_fast[idx_fast, :] = system_dyn.y
         if run_MPC: # it is also a step of the simulation at rate Ts_MPC
             x_vec[idx_MPC, :] = system_dyn.y
             t_vec[idx_MPC, :] = t_step
@@ -156,11 +156,15 @@ if __name__ == '__main__':
             uMPC = K.output() # MPC step (u_k value)
             u_vec[idx_MPC, :] = uMPC
 
+        u_fast = uMPC + d_fast[idx_fast]
+        u_vec_fast[idx_fast,:] = u_fast
+        t_vec_fast[idx_fast,:] = t_step
+
+
         # System simulation step
         if run_MPC:
-            system_dyn.set_f_params(uMPC)# + d_fast[idx_fast]/10) # set current input value
-
-        system_dyn.set_f_params(uMPC + d_fast[idx_fast])
+            pass #system_dyn.set_f_params(uMPC)# + d_fast[idx_fast]/10) # set current input value
+        system_dyn.set_f_params(u_fast)
         system_dyn.integrate(t_step + Ts_sim)
 
         # Update simulation time
@@ -171,15 +175,16 @@ if __name__ == '__main__':
     time_sim = time.time() - time_start
 
     fig,axes = plt.subplots(3,1, figsize=(10,10))
-    axes[0].plot(t_vec, x_vec[:, 0], "k", label='p')
-    axes[0].plot(t_vec, xref_vec[:,0], "r--", label="p_ref")
+    axes[0].plot(t_vec_fast, x_vec_fast[:, 0], "k", label='p')
+    axes[0].plot(t_vec_fast, xref_vec_fast[:,0], "r--", label="p_ref")
     axes[0].set_title("Position (m)")
 
-    axes[1].plot(t_vec, x_vec[:, 2] * 360 / 2 / np.pi, label="phi")
-    axes[1].plot(t_vec, xref_vec[:,2] * 360 / 2 / np.pi, "r--", label="phi_ref")
+    axes[1].plot(t_vec_fast, x_vec_fast[:, 2] * 360 / 2 / np.pi, label="phi")
+    axes[1].plot(t_vec_fast, xref_vec_fast[:,2] * 360 / 2 / np.pi, "r--", label="phi_ref")
     axes[1].set_title("Angle (deg)")
 
-    axes[2].plot(t_vec, u_vec[:, 0], label="u")
+    axes[2].step(t_vec_fast, u_vec_fast[:, 0], label="F")
+    axes[2].step(t_vec, u_vec[:, 0], label="F_MPC")
     axes[2].plot(t_vec, uref * np.ones(np.shape(t_vec)), "r--", label="u_ref")
     axes[2].set_title("Force (N)")
 
