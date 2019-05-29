@@ -32,6 +32,7 @@
 \newcommand{\DP}[1]{\textcolor{red}{#1}}
 \newcommand{\MPC}{\mathrm{MPC}}
 \newcommand{\Np}{{N_p}}
+\newcommand{\Nu}{{N_u}}
 \newcommand{\blkdiag}{\text{blkdiag}}
 \newcommand{\slack}{\epsilon}
 \newcommand{\varx}{\mathbf{x}}
@@ -95,7 +96,7 @@ The challenge here is to rewrite the MPC optimization problem \eqref{eq:MPC} in 
 \subsection{Cost function}
 By direct inspection, the non-constant terms of the cost function in $Q_x$ are:
 \begin{multline}
- J_{Q_u} = \frac{1}{2}
+ J_{Q_x} = \frac{1}{2}
  \begin{bmatrix}
   u_0 & u_1 &\dots & u_{\Np-1}
  \end{bmatrix}^\top
@@ -205,7 +206,7 @@ we get a set of linear equality constraints representing the system dynamics \eq
 These constraints can be written as
 \begin{equation}
  \begin{bmatrix}
-  \mathcal{A}-I & \mathcal{B}
+  (\mathcal{A}-I) & \mathcal{B}
  \end{bmatrix}
  \begin{bmatrix}
   x\\
@@ -254,5 +255,86 @@ is to transform the constraints in $x$ into soft constraints by means of  \emph{
 \end{bmatrix}
 \end{equation}.
 
+\section{Control Horizon}
+In practice, we may want to introduce a control horizon $N_u \leq N_p$. The input is constant for $N_u \geq N_p$.
+
+
+\begin{equation}
+\begin{bmatrix}
+x_0\\
+x_1\\
+\vdots\\
+x_{\Np-1}\\
+x_{\Np}
+\end{bmatrix}=
+\overbrace{
+\begin{bmatrix}
+ 0      &0      &\dots  &0\\
+ A_d    &0      &\dots  & 0\\
+ 0      &A_d    &\dots  &0\\
+ \vdots &0      &\ddots & 0\\
+ 0      &0      &\dots  &A_d
+\end{bmatrix}
+}^{=\mathcal{A}}
+\begin{bmatrix}
+x_0\\
+x_1\\
+\vdots\\
+x_{\Np-1}\\
+x_{\Np} 
+\end{bmatrix} +
+\overbrace{
+\begin{bmatrix}
+ 0      &0      &\dots  &0\\
+ B_d    &0      &\dots  & 0\\
+ 0      &B_d    &\dots  &0\\
+ \vdots &0      &\ddots & 0\\
+ 0      &0      &\dots  &B_d
+\end{bmatrix}
+}^{=\mathcal B}
+\begin{bmatrix}
+u_0\\
+u_1\\
+\vdots\\
+u_{\Nu-2}\\
+u_{\Np-1}\\
+\vdots\\
+u_{\Np-1}
+\end{bmatrix} +
+\overbrace{
+\begin{bmatrix}
+\bar x\\
+0\\
+\vdots\\
+\vdots \\
+0 
+\end{bmatrix}
+}^{=\mathcal{C}}
+\end{equation}
+\begin{equation}
+\begin{bmatrix}
+u_0\\
+u_1\\
+\vdots\\
+u_{\Nu-2}\\
+u_{\Np-1}\\
+\vdots\\
+u_{\Np-1}
+\end{bmatrix} =
+\overbrace{
+\begin{bmatrix}
+I & 0 & \dots & 0 & 0 \\
+0 & I & 0 & \dots\\
+0 & 0 & \ddots \\
+\end{bmatrix}
+}^{\mathcal{N}}
+\begin{bmatrix}
+u_0\\
+u_1\\
+\vdots\\
+u_{\Nu-2}\\
+u_{\Np-1}
+\end{bmatrix}  
+\end{equation}
 \end{document} 
 
