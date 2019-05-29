@@ -9,39 +9,39 @@ class MPCController:
 
     Attributes
     ----------
-    Ad : 2D array_like
-         Discrete-time system matrix A of size nx * nx.
-    Bd : 2D array-like
-         Discrete-time system matrix B.
-    x0 : 1D array_like
+    Ad : 2D array_like. Size: (nx, nx)
+         Discrete-time system matrix Ad.
+    Bd : 2D array-like. Size: (nx, nu)
+         Discrete-time system matrix Bd.
+    x0 : 1D array_like. Size: (nx,)
          System state at time instant 0.
-    xref : 1D array-like
-           System state reference (aka target, set-point)
-    uref : 1D array-like
-           System input reference
+    xref : 1D array-like. Size: (nx,)
+           System state reference (aka target, set-point).
+    uref : 1D array-like. Size: (nu, ).
+           System input reference. If None, it is set to np.zeros(nx)
     uminus1 : 1D array_like
-             Input value assumed at time instant -1
+             Input value assumed at time instant -1. If None, it is set to uref.
     Qx : 2D array_like
-         State weight matrix
+         State weight matrix. If None, it is set to eye(nx).
     Qu : 2D array_like
-         Input weight matrix
+         Input weight matrix. If None, it is set to zeros((nu,nu)).
     QDu : 2D array_like
-         Input delta weight matrix
+         Input delta weight matrix. If None, it is set to zeros((nu,nu)).
     Np : int
-        Prediction horizon
+        Prediction horizon. Default value: 10.
     xmin : 1D array_like
-           State minimum value
-    xmin : 1D array_like
-           State maximum value
+           State minimum value. If None, it is set to -np.inf*ones(nx).
+    xmax : 1D array_like
+           State maximum value. If None, it is set to np.inf*ones(nx).
     umin : 1D array_like
-           Input minimum value
+           Input minimum value. If None, it is set to -np.inf*ones(nx).
     umax : 1D array_like
-           Input maximum value
+           Input maximum value. If None, it is set to np.inf*ones(nx).
     Dumin : 1D array_like
-           Input variation minimum value
+           Input variation minimum value. If None, it is set to np.inf*ones(nx).
     Dumax : 1D array_like
-           Input variation maximum value
-    eps_feas : Scale factor for the matrix Q_eps
+           Input variation maximum value. If None, it is set to np.inf*ones(nx).
+    eps_feas : Scale factor for the matrix Q_eps. Q_eps = eps_feas*eye(nx)
     """
 
     def __init__(self, Ad, Bd, Np=10,
@@ -149,6 +149,14 @@ class MPCController:
         self.uminus1_rh = None
 
     def setup(self, solve=True):
+        """ Set-up the QP problem.
+
+        Parameters
+        ----------
+        solve : bool
+               If True, also solve the QP problem.
+
+        """
         self.x0_rh = self.x0
         self.uminus1_rh = self.uminus1
         self._compute_QP_matrices_()
@@ -157,7 +165,21 @@ class MPCController:
         if solve:
             self.solve()
 
-    def output(self, return_x_seq=False):
+
+    def output(self, return_x_seq=False, return_status=False):
+        """ Return the MPC controller output uMPC, i.e., the first element of the optimal input sequence.
+            Assign uMPC to self.uminus1_rh.
+
+        Parameters
+        ----------
+        return_x_seq : bool
+                       If true, the method also returns the optimal sequence of states
+
+        Returns
+        -------
+        array_like (nu,)
+            The first element of the optimal input sequence uMPC to be applied to the system.
+        """
 
         Np = self.Np
         nx = self.nx
@@ -175,6 +197,10 @@ class MPCController:
             seq_X = self.res.x[0:(Np+1)*nx]
             seq_X = seq_X.reshape(-1,nx)
             info['x_seq'] = seq_X
+
+        if return_status:
+            info['status'] = self.res.info.status
+
         self.uminus1_rh = uMPC
 
         if len(info) == 0:
@@ -184,6 +210,24 @@ class MPCController:
             return uMPC, info
 
     def update(self,x,u=None,xref=None,solve=True):
+        """ Update the QP problem.
+
+        Parameters
+        ----------
+        x : array_like. Size: (nx,)
+            The new value of x0.
+
+        u : array_like. Size: (nu,)
+            The new value of uminus1. If none, it is set to the previously computed u.
+
+        xref : array_like. Size: (nx,)
+            The new value of xref. If none, it is not changed
+
+        solve : bool
+               If True, also solve the QP problem.
+
+        """
+
         self.x0_rh = x # previous x0
         if u is not None:
             self.uminus1_rh = u # otherwise it is just the uMPC updated from the previous step() call
@@ -194,6 +238,8 @@ class MPCController:
             self.solve()
 
     def solve(self):
+        """ Solve the QP problem. """
+
         self.res = self.prob.solve()
 
         # Check solver status
@@ -397,8 +443,6 @@ class MPCController:
         #self.Aineq_du = Aineq_du
         #self.leq_dyn = leq_dyn
         #self.lineq_du = lineq_du
-
-
 
 if __name__ == '__main__':
     import time
