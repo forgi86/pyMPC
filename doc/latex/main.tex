@@ -57,10 +57,10 @@ The MPC problem to be solved is:
     +  
   \overbrace{\sum_{k=0}^{\Np-1} \Delta u_k^\top \Qdu \Delta u_k}^{J_{\Delta u}} \\ \nonumber
   &\text{subject to} \nonumber\\
-  &x_{k+1} = Ax_k + B u_k\\ \label{eq:linear_dynamics}
+  &x_{k+1} = Ax_k + B u_k \label{eq:linear_dynamics} \\ 
   &u_{min} \leq u_k \leq u_{max}\\
   &x_{min} \leq x_k \leq x_{max}\\
-  &\Delta u_{min} \leq \Delta u_k \leq \Delta u_{min}\\
+  &\Delta u_{min} \leq \Delta u_k \leq \Delta u_{max}\\
   &x_0 = \bar x\\
   &u_{-1} = \bar u
 \end{align}
@@ -81,7 +81,7 @@ Thus, formally, the MPC control law is a (static) function of the current state 
 Note that this function also depends on the references $x_{ref}$ and $u_{ref}$ and on the system matrices $A$ and $B$.
 
 \section{Quadratic Programming Formulation}
-The QP solver expets a problem with form: 
+The QP solver expects a problem with form: 
 \begin{subequations}
 \label{eq:QP}
 \begin{align}
@@ -150,7 +150,7 @@ By direct inspection, the non-constant terms of the cost function in $Q_x$ are:
  \end{multline} 
 \subsection{Constraints}
 \subsubsection{Linear dynamics}
-Let us consider the linear equality constraints \eqref{eq:linear_dynamics} representing the system dynamcs. These can 
+Let us consider the linear equality constraints \eqref{eq:linear_dynamics} representing the system dynamics. These can 
 be written in matrix form as
 \begin{equation}
 \begin{bmatrix}
@@ -214,7 +214,7 @@ These constraints can be written as
  \end{bmatrix}
  = \mathcal{C}.
 \end{equation}
-\subsubsection{Variable bounds}
+\subsubsection{Variable bounds: $x$ and $u$}
 Bounds on $x$ and $u$ are readily implemented as
 \begin{equation}
 \begin{bmatrix}
@@ -233,6 +233,37 @@ Bounds on $x$ and $u$ are readily implemented as
  x_{max}\\u_{max}
 \end{bmatrix}.
 \end{equation}
+\subsubsection{Variable bounds: $\Delta u$}
+\begin{equation}
+\begin{bmatrix}
+u_{-1} +\Delta u_{min}\\
+\Delta u_{min}\\
+\vdots\\
+\Delta u_{min}\\
+\end{bmatrix} \leq 
+\begin{bmatrix}
+  I  &  0 & \dots & \dots  & 0 & 0\\
+ -I  &  I &  0    & \dots  & 0 & 0\\
+  0  & -I &  I    & \dots  & 0 & 0\\
+	\vdots\\
+	0  &  0 & \dots & 0      &-I & I\\    
+\end{bmatrix}
+\begin{bmatrix}
+u_0\\
+u_1\\
+\vdots\\
+u_{\Nu-1}\\
+\end{bmatrix}
+\leq 
+\begin{bmatrix}
+u_{-1} +\Delta u_{max}\\
+\Delta u_{max}\\
+\vdots\\
+\Delta u_{max}\\
+\end{bmatrix}
+\end{equation}
+
+\subsubsection{Slack variables}
 However, bounds on $x$ may make the problem unfeasible! A common solution
 is to transform the constraints in $x$ into soft constraints by means of  \emph{slack variables} $\slack$.
 \begin{equation}

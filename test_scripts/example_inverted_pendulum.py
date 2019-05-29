@@ -14,7 +14,7 @@ if __name__ == '__main__':
     l = 0.3
     g = 9.81
 
-    Ts = 5e-3
+    Ts = 50e-3
 
     Ac =np.array([[0,       1,          0,                  0],
                   [0,       -b/M,       -(g*m)/M,           (ftheta*m)/M],
@@ -61,8 +61,9 @@ if __name__ == '__main__':
 
     # Prediction horizon
     Np = 20
+    Nc = 20
 
-    K = MPCController(Ad,Bd,Np=Np, x0=x0,xref=xref,uminus1=uminus1,
+    K = MPCController(Ad,Bd,Np=Np, Nc=Nc, x0=x0,xref=xref,uminus1=uminus1,
                       Qx=Qx, QxN=QxN, Qu=Qu,QDu=QDu,
                       xmin=xmin,xmax=xmax,umin=umin,umax=umax,Dumin=Dumin,Dumax=Dumax,
                       eps_feas = 1e3)
