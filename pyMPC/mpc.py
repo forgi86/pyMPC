@@ -41,14 +41,19 @@ class MPCController:
            Input variation minimum value. If None, it is set to np.inf*ones(nx).
     Dumax : 1D array_like
            Input variation maximum value. If None, it is set to np.inf*ones(nx).
-    eps_feas : Scale factor for the matrix Q_eps. Q_eps = eps_feas*eye(nx)
+    eps_feas : float
+               Scale factor for the matrix Q_eps. Q_eps = eps_feas*eye(nx).
+    eps_rel : float
+              Relative tolerance of the QP solver. Default value: 1e-3.
+    eps_abs : float
+              Absolute tolareance of the QP solver. Default value: 1e-3.
     """
 
     def __init__(self, Ad, Bd, Np=10,
                  x0=None, xref=None, uref=None, uminus1=None,
                  Qx=None, QxN=None, Qu=None, QDu=None,
                  xmin=None, xmax=None, umin=None,umax=None,Dumin=None,Dumax=None,
-                 eps_feas = 1e6):
+                 eps_feas = 1e6, eps_rel=1e-3, eps_abs=1e-3):
         self.Ad = Ad
         self.Bd = Bd
         self.nx, self.nu = self.Bd.shape # number of states and number or inputs
@@ -130,6 +135,9 @@ class MPCController:
         self.eps_feas = eps_feas
         self.Qeps = eps_feas * sparse.eye(self.nx)
 
+        self.eps_rel = eps_rel
+        self.eps_abs = eps_abs
+
         self.raise_error = False
         self.u_failure = self.uref # value provided when the MPC solver fails.
 
@@ -160,15 +168,15 @@ class MPCController:
         self.x0_rh = self.x0
         self.uminus1_rh = self.uminus1
         self._compute_QP_matrices_()
-        self.prob.setup(self.P, self.q, self.A, self.l, self.u, warm_start=True, verbose=False, eps_abs=1e-3, eps_rel=1e-3)
+        self.prob.setup(self.P, self.q, self.A, self.l, self.u, warm_start=True, verbose=False, eps_abs=self.eps_rel, eps_rel=self.eps_abs)
 
         if solve:
             self.solve()
 
 
     def output(self, return_x_seq=False, return_status=False):
-        """ Return the MPC controller output uMPC, i.e., the first element of the optimal input sequence.
-            Assign uMPC to self.uminus1_rh.
+        """ Return the MPC controller output uMPC, i.e., the first element of the optimal input sequence and assign is to self.uminus1_rh.
+
 
         Parameters
         ----------
