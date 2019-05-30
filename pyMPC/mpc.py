@@ -13,8 +13,12 @@ class MPCController:
          Discrete-time system matrix Ad.
     Bd : 2D array-like. Size: (nx, nu)
          Discrete-time system matrix Bd.
+    Np : int
+        Prediction horizon. Default value: 20.
+    Nc : int
+        Control horizon. It must be lower or equal to Np. If None, it is set equal to Np.
     x0 : 1D array_like. Size: (nx,)
-         System state at time instant 0.
+         System state at time instant 0. If None, it is set to np.zeros(nx)
     xref : 1D array-like. Size: (nx,)
            System state reference (aka target, set-point).
     uref : 1D array-like. Size: (nu, ).
@@ -27,8 +31,6 @@ class MPCController:
          Input weight matrix. If None, it is set to zeros((nu,nu)).
     QDu : 2D array_like
          Input delta weight matrix. If None, it is set to zeros((nu,nu)).
-    Np : int
-        Prediction horizon. Default value: 10.
     xmin : 1D array_like
            State minimum value. If None, it is set to -np.inf*ones(nx).
     xmax : 1D array_like
@@ -49,7 +51,7 @@ class MPCController:
               Absolute tolerance of the QP solver. Default value: 1e-3.
     """
 
-    def __init__(self, Ad, Bd, Np=10, Nc=None,
+    def __init__(self, Ad, Bd, Np=20, Nc=None,
                  x0=None, xref=None, uref=None, uminus1=None,
                  Qx=None, QxN=None, Qu=None, QDu=None,
                  xmin=None, xmax=None, umin=None,umax=None,Dumin=None,Dumax=None,
@@ -180,7 +182,7 @@ class MPCController:
             self.solve()
 
 
-    def output(self, return_x_seq=False, return_u_seq=False, return_status=False):
+    def output(self, return_x_seq=False, return_u_seq=False, return_eps_seq=False, return_status=False):
         """ Return the MPC controller output uMPC, i.e., the first element of the optimal input sequence and assign is to self.uminus1_rh.
 
 
@@ -216,6 +218,11 @@ class MPCController:
             seq_U = self.res.x[(Np+1)*nx:(Np+1)*nx + Nc*nu]
             seq_U = seq_U.reshape(-1,nu)
             info['u_seq'] = seq_U
+
+        if return_eps_seq:
+            seq_eps = self.res.x[(Np+1)*nx + Nc*nu : (Np+1)*nx + Nc*nu + (Np+1)*nx ]
+            seq_eps = seq_eps.reshape(-1,nx)
+            info['eps_seq'] = seq_eps
 
         if return_status:
             info['status'] = self.res.info.status
@@ -312,7 +319,13 @@ class MPCController:
 
         q_U = np.zeros(Nc*nu)
         if self.JU_ON:
-            q_U =  np.kron(np.ones(Nc), -Qu.dot(uref))
+            if self.Nc == self.Np:
+                q_U += np.kron(np.ones(Nc), -Qu.dot(uref))
+            else: # Nc < Np. This formula is more general and could handle the case Nc = Np either. TODO: test
+                iU = np.ones(Nc)
+                iU[Nc-1] = (Np - Nc + 1)
+                q_U += np.kron(iU, -Qu.dot(uref))
+
         # Filling P and q for J_DU
         if self.JDU_ON:
             q_U += np.hstack([-QDu.dot(uminus1_rh),           # u0
@@ -354,32 +367,35 @@ class MPCController:
         # Cast MPC problem to a QP: x = (x(0),x(1),...,x(N),u(0),...,u(N-1))
         # - quadratic objective
 
-        # Filling P and q for J_X
-        #P_X = sparse.kron(sparse.eye((Np + 1) * nx), 0)  # x0...xN
         P_X = sparse.csc_matrix(((Np+1)*nx, (Np+1)*nx))
-        q_X = np.zeros((Np + 1) * nx)  # x_N
+        q_X = np.zeros((Np+1)*nx)  # x_N
         if self.JX_ON:
             P_X += sparse.block_diag([sparse.kron(sparse.eye(Np), Qx),   # x0...x_N-1
-                                     QxN])                              # xN
+                                      QxN])                              # xN
             q_X += np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),       # x0... x_N-1
-                           -QxN.dot(xref)])                             # x_N
+                              -QxN.dot(xref)])                           # x_N
         else:
             pass
 
         # Filling P and q for J_U
-        #P_U = sparse.kron(sparse.eye((Np)*nu),0)
         P_U = sparse.csc_matrix((Nc*nu, Nc*nu))
         q_U = np.zeros(Nc*nu)
         if self.JU_ON:
-            P_U += sparse.kron(sparse.eye(Nc), Qu)
-            q_U =  np.kron(np.ones(Nc), -Qu.dot(uref))
+            if self.Nc == self.Np:
+                P_U += sparse.kron(sparse.eye(Nc), Qu)
+                q_U += np.kron(np.ones(Nc), -Qu.dot(uref))
+            else: # Nc < Np. This formula is more general and could handle the case Nc = Np either. TODO: test
+                iU = np.ones(Nc)
+                iU[Nc-1] = (Np - Nc + 1)
+                P_U += sparse.kron(sparse.diags(iU), Qu)
+                q_U += np.kron(iU, -Qu.dot(uref))
 
         # Filling P and q for J_DU
         if self.JDU_ON:
             iDu = 2 * np.eye(Nc) - np.eye(Nc, k=1) - np.eye(Nc, k=-1)
             iDu[Nc - 1, Nc - 1] = 1
             P_U += sparse.kron(iDu, QDu)
-            q_U += np.hstack([-QDu.dot(uminus1),           # u0
+            q_U += np.hstack([-QDu.dot(uminus1),            # u0
                               np.zeros((Nc - 1) * nu)])     # u1..uN-1
         else:
             pass
@@ -394,7 +410,7 @@ class MPCController:
         Ax = sparse.kron(sparse.eye(Np + 1), -sparse.eye(nx)) + sparse.kron(sparse.eye(Np + 1, k=-1), Ad)
         iBu = sparse.vstack([sparse.csc_matrix((1, Nc)),
                              sparse.eye(Nc)])
-        if self.Nc < self.Np:
+        if self.Nc < self.Np: # expand A matrix if Nc < Nu (see notes)
             iBu = sparse.vstack([iBu,
                                  sparse.hstack([sparse.csc_matrix((Np - Nc, Nc - 1)), np.ones((Np - Nc, 1))])
                                 ])
@@ -526,7 +542,7 @@ if __name__ == '__main__':
 
     # Prediction horizon
     Np = 25
-    Nc = 25
+    Nc = 10
 
     K = MPCController(Ad,Bd,Np=Np,Nc=Nc,x0=x0,xref=xref,uminus1=uminus1,
                       Qx=Qx, QxN=QxN, Qu=Qu,QDu=QDu,
@@ -544,7 +560,7 @@ if __name__ == '__main__':
     time_start = time.time()
     xstep = x0
     for i in range(nsim):
-        uMPC, info = K.output(return_u_seq=True, return_x_seq=True, return_status=True)
+        uMPC, info = K.output(return_u_seq=True, return_x_seq=True, return_eps_seq=True, return_status=True)
         xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # system step
         K.update(xstep) # update with measurement
         K.solve()

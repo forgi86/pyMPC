@@ -32,7 +32,7 @@
 \newcommand{\DP}[1]{\textcolor{red}{#1}}
 \newcommand{\MPC}{\mathrm{MPC}}
 \newcommand{\Np}{{N_p}}
-\newcommand{\Nu}{{N_u}}
+\newcommand{\Nc}{{N_c}}
 \newcommand{\blkdiag}{\text{blkdiag}}
 \newcommand{\slack}{\epsilon}
 \newcommand{\varx}{\mathbf{x}}
@@ -96,14 +96,15 @@ The challenge here is to rewrite the MPC optimization problem \eqref{eq:MPC} in 
 \subsection{Cost function}
 By direct inspection, the non-constant terms of the cost function in $Q_x$ are:
 \begin{multline}
+\label{eq:J_Qx}
  J_{Q_x} = \frac{1}{2}
  \begin{bmatrix}
-  u_0 & u_1 &\dots & u_{\Np-1}
+  x_0^\top & x_1^\top &\dots & x_{\Np-1}^\top
  \end{bmatrix}^\top
  \blkdiag(Q_x, Q_x, \dots, Q_x)
  \begin{bmatrix}
-  u_0 \\  u_1\\ \vdots\\  u_{\Np-1}
- \end{bmatrix}^\top
+  x_0 \\  x_1\\ \vdots\\  x_{\Np-1}
+ \end{bmatrix}
  %\begin{bmatrix}
  % Q_x       & 0  &\dots   & \dots & 0\\
  % 0         & Q_x  &0       & \dots & 0\\
@@ -115,13 +116,32 @@ By direct inspection, the non-constant terms of the cost function in $Q_x$ are:
  +
   \begin{bmatrix}
   -x_{ref}^\top Q_x & -x_{ref}^\top Q_x &\dots & -x_{ref}^\top Q_x
- \end{bmatrix}^\top 
+ \end{bmatrix} 
  \begin{bmatrix}
-  u_0 \\ u_1 \\ \vdots \\ u_{\Np-1}
+  x_0 \\ x_1 \\ \vdots \\ x_{\Np-1}
  \end{bmatrix}^\top 
  \end{multline}
- and similarly for the term in $Q_{x_\Np}$ and the terms in $Q_u$. 
- For the terms in $Q \Delta u$ we have instead
+ and similarly for the term $J_{Q_{x_\Np}}$ and $J_{Q_u}$: 
+\begin{multline}
+\label{eq:J_Qu}
+ J_{Q_u} = \frac{1}{2}
+ \begin{bmatrix}
+  u_0^\top & u_1^\top &\dots & u_{\Np-1}^\top
+ \end{bmatrix}
+ \blkdiag(Q_u, Q_u, \dots, Q_u)
+ \begin{bmatrix}
+  u_0 \\  u_1\\ \vdots\\  u_{\Np-1}
+ \end{bmatrix}
+  + \\
+ +
+  \begin{bmatrix}
+  -u_{ref}^\top Q_u & -u_{ref}^\top Q_u &\dots & -u_{ref}^\top Q_u
+ \end{bmatrix}
+ \begin{bmatrix}
+  u_0 \\ u_1 \\ \vdots \\ u_{\Np-1}
+ \end{bmatrix} 
+ \end{multline}
+ For the terms in $Q_\Delta u$ we have instead
 \begin{multline}
  J_{\Delta u} = \frac{1}{2}
  \begin{bmatrix}
@@ -252,7 +272,7 @@ u_{-1} +\Delta u_{min}\\
 u_0\\
 u_1\\
 \vdots\\
-u_{\Nu-1}\\
+u_{\Nc-1}\\
 \end{bmatrix}
 \leq 
 \begin{bmatrix}
@@ -264,8 +284,8 @@ u_{-1} +\Delta u_{max}\\
 \end{equation}
 
 \subsubsection{Slack variables}
-However, bounds on $x$ may make the problem unfeasible! A common solution
-is to transform the constraints in $x$ into soft constraints by means of  \emph{slack variables} $\slack$.
+Bounds on $x$ may result in an problem unfeasible! A common solution
+is to transform the hard constraints in $x$ into soft constraints by means of  \emph{slack variables} $\slack$.
 \begin{equation}
 \begin{bmatrix}
  x_{min}\\u_{min}
@@ -287,8 +307,7 @@ is to transform the constraints in $x$ into soft constraints by means of  \emph{
 \end{equation}.
 
 \section{Control Horizon}
-In practice, we may want to introduce a control horizon $N_u \leq N_p$. The input is constant for $N_u \geq N_p$.
-
+Sometimes, we may want to use a control horizon $\Nc < \Np$ instead of the standard $\Nc = \Np$. The input is constant for $\Nc \geq \ Np$.
 
 \begin{equation}
 \begin{bmatrix}
@@ -320,17 +339,19 @@ x_{\Np}
  B_d    &0      &\dots  & 0\\
  0      &B_d    &\dots  &0\\
  \vdots &0      &\ddots & 0\\
- 0      &0      &\dots  &B_d
+ 0      &0      &\dots  &B_d\\
+ 0      &0      &\dots  &\vdots\\
+ 0      &0      &\dots  &B_d\\
 \end{bmatrix}
 }^{=\mathcal B}
 \begin{bmatrix}
 u_0\\
 u_1\\
+u_2\\
 \vdots\\
-u_{\Nu-2}\\
-u_{\Np-1}\\
+u_{\Nc-1}\\
 \vdots\\
-u_{\Np-1}
+u_{\Nc-1}
 \end{bmatrix} +
 \overbrace{
 \begin{bmatrix}
@@ -342,30 +363,27 @@ u_{\Np-1}
 \end{bmatrix}
 }^{=\mathcal{C}}
 \end{equation}
-\begin{equation}
-\begin{bmatrix}
-u_0\\
-u_1\\
-\vdots\\
-u_{\Nu-2}\\
-u_{\Np-1}\\
-\vdots\\
-u_{\Np-1}
-\end{bmatrix} =
-\overbrace{
-\begin{bmatrix}
-I & 0 & \dots & 0 & 0 \\
-0 & I & 0 & \dots\\
-0 & 0 & \ddots \\
-\end{bmatrix}
-}^{\mathcal{N}}
-\begin{bmatrix}
-u_0\\
-u_1\\
-\vdots\\
-u_{\Nu-2}\\
-u_{\Np-1}
-\end{bmatrix}  
-\end{equation}
+
+The contributions $J_{Q_u}$ of the cost function also changes:
+\begin{multline}
+\label{eq:J_Qu_Nc}
+ J_{Q_u} = \frac{1}{2}
+ \begin{bmatrix}
+  u_0^\top & u_1^\top &\dots & u_{\Np-1}^\top
+ \end{bmatrix}
+ \blkdiag\bigg(Q_u, Q_u, \dots, (\Np - \Nc + 1)Q_u\bigg)
+ \begin{bmatrix}
+  u_0 \\  u_1\\ \vdots\\  u_{\Np-1}
+ \end{bmatrix}
+  + \\
+ +
+  \begin{bmatrix}
+  -u_{ref}^\top Q_u & -u_{ref}^\top Q_u &\dots & -(\Np - \Nc + 1)u_{ref}^\top Q_u
+ \end{bmatrix}
+ \begin{bmatrix}
+  u_0 \\ u_1 \\ \vdots \\ u_{\Np-1}
+ \end{bmatrix}
+ \end{multline}
+Instead, $J_\Delta u$ does not change (because the input is constant for $k \geq N_c$!
 \end{document} 
 
