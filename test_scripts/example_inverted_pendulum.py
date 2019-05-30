@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
     # Constraints
     xmin = np.array([-1.0, -100, -100, -100])
-    xmax = np.array([0.3,   100.0, 100, 100])
+    xmax = np.array([1.0,   100.0, 100, 100])
 
     umin = np.array([-20])
     umax = np.array([20])
@@ -50,8 +50,8 @@ if __name__ == '__main__':
     Dumax = np.array([5])
 
     # Objective function weights
-    Qx = sparse.diags([0.3, 0, 1.0, 0])   # Quadratic cost for states x0, x1, ..., x_N-1
-    QxN = sparse.diags([0.3, 0, 1.0, 0])  # Quadratic cost for xN
+    Qx = sparse.diags([.3, 0, 1.0, 0])   # Quadratic cost for states x0, x1, ..., x_N-1
+    QxN = sparse.diags([.3, 0, 1.0, 0])  # Quadratic cost for xN
     Qu = 0.0 * sparse.eye(1)        # Quadratic cost for u0, u1, ...., u_N-1
     QDu = 0.01 * sparse.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
 
@@ -61,7 +61,7 @@ if __name__ == '__main__':
 
     # Prediction horizon
     Np = 20
-    Nc = 20
+    Nc = 15
 
     K = MPCController(Ad,Bd,Np=Np, Nc=Nc, x0=x0,xref=xref,uminus1=uminus1,
                       Qx=Qx, QxN=QxN, Qu=Qu,QDu=QDu,
