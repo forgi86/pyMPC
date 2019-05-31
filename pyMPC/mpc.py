@@ -149,10 +149,10 @@ class MPCController:
         self.raise_error = False
         self.u_failure = self.uref # value provided when the MPC solver fails.
 
-        self.JX_ON = True
-        self.JU_ON = True
-        self.JDU_ON = True
-        self.SOFT_ON = True
+        self.JX_ON = True # Cost function terms in X active
+        self.JU_ON = True # Cost function terms in U active
+        self.JDU_ON = True # Cost function terms in Delta U active
+        self.SOFT_ON = True # Soft constraints active
 
         self.prob = osqp.OSQP()
         self.res = None
@@ -163,6 +163,8 @@ class MPCController:
         self.u = None
         self.x0_rh = None
         self.uminus1_rh = None
+
+        self.J_CNST = None # Constant to be added to the optimal value
 
     def setup(self, solve=True):
         """ Set-up the QP problem.
@@ -182,7 +184,7 @@ class MPCController:
             self.solve()
 
 
-    def output(self, return_x_seq=False, return_u_seq=False, return_eps_seq=False, return_status=False):
+    def output(self, return_x_seq=False, return_u_seq=False, return_eps_seq=False, return_status=False, return_obj_val=False):
         """ Return the MPC controller output uMPC, i.e., the first element of the optimal input sequence and assign is to self.uminus1_rh.
 
 
@@ -226,6 +228,10 @@ class MPCController:
 
         if return_status:
             info['status'] = self.res.info.status
+
+        if return_obj_val:
+            obj_val = self.res.info.obj_val + self.J_CNST # constant of the objective value
+            info['obj_val'] = obj_val
 
         self.uminus1_rh = uMPC
 
@@ -305,13 +311,14 @@ class MPCController:
         self.l[:nx] = -x0_rh
         self.u[:nx] = -x0_rh
 
-        self.l[(Np+1)*nx + (Np+1)*nx + (Nc)*nu:(Np+1)*nx + (Np+1)*nx + (Nc)*nu + nu] = Dumin + uminus1_rh[0:nu]
-        self.u[(Np+1)*nx + (Np+1)*nx + (Nc)*nu:(Np+1)*nx + (Np+1)*nx + (Nc)*nu + nu] = Dumax + uminus1_rh[0:nu]
-
+        self.l[(Np+1)*nx + (Np+1)*nx + (Nc)*nu:(Np+1)*nx + (Np+1)*nx + (Nc)*nu + nu] = Dumin + uminus1_rh[0:nu]  # update constraint on \Delta u0: Dumin <= u0 - u_{-1}
+        self.u[(Np+1)*nx + (Np+1)*nx + (Nc)*nu:(Np+1)*nx + (Np+1)*nx + (Nc)*nu + nu] = Dumax + uminus1_rh[0:nu]  # update constraint on \Delta u0: u0 - u_{-1} <= Dumax
 
         # Update the linear term q. This part could be further optimized in case of constant xref...
         q_X = np.zeros((Np + 1) * nx)  # x_N
+        self.J_CNST = 0.0
         if self.JX_ON:
+            self.J_CNST += 1/2*Np*(xref.dot(QxN.dot(xref))) + 1/2*xref.dot(QxN.dot(xref))
             q_X += np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),       # x0... x_N-1
                            -QxN.dot(xref)])                             # x_N
         else:
@@ -319,15 +326,17 @@ class MPCController:
 
         q_U = np.zeros(Nc*nu)
         if self.JU_ON:
+            self.J_CNST += 1/2* Np * (uref.dot(Qu.dot(uref)))
             if self.Nc == self.Np:
                 q_U += np.kron(np.ones(Nc), -Qu.dot(uref))
-            else: # Nc < Np. This formula is more general and could handle the case Nc = Np either. TODO: test
+            else:  # Nc < Np. This formula is more general and could handle the case Nc = Np either. TODO: test
                 iU = np.ones(Nc)
                 iU[Nc-1] = (Np - Nc + 1)
                 q_U += np.kron(iU, -Qu.dot(uref))
 
         # Filling P and q for J_DU
         if self.JDU_ON:
+            self.J_CNST += 1/2*uminus1_rh.dot((QDu).dot(uminus1_rh))
             q_U += np.hstack([-QDu.dot(uminus1_rh),           # u0
                               np.zeros((Nc - 1) * nu)])     # u1..uN-1
         else:
@@ -369,11 +378,14 @@ class MPCController:
 
         P_X = sparse.csc_matrix(((Np+1)*nx, (Np+1)*nx))
         q_X = np.zeros((Np+1)*nx)  # x_N
+        self.J_CNST = 0.0
         if self.JX_ON:
             P_X += sparse.block_diag([sparse.kron(sparse.eye(Np), Qx),   # x0...x_N-1
                                       QxN])                              # xN
             q_X += np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),       # x0... x_N-1
                               -QxN.dot(xref)])                           # x_N
+
+            self.J_CNST += 1/2*Np*(xref.dot(QxN.dot(xref))) + 1/2*xref.dot(QxN.dot(xref))
         else:
             pass
 
@@ -381,6 +393,8 @@ class MPCController:
         P_U = sparse.csc_matrix((Nc*nu, Nc*nu))
         q_U = np.zeros(Nc*nu)
         if self.JU_ON:
+            self.J_CNST += 1/2*Np*(uref.dot(Qu.dot(uref)))
+
             if self.Nc == self.Np:
                 P_U += sparse.kron(sparse.eye(Nc), Qu)
                 q_U += np.kron(np.ones(Nc), -Qu.dot(uref))
@@ -392,6 +406,7 @@ class MPCController:
 
         # Filling P and q for J_DU
         if self.JDU_ON:
+            self.J_CNST += 1/2*uminus1.dot((QDu).dot(uminus1))
             iDu = 2 * np.eye(Nc) - np.eye(Nc, k=1) - np.eye(Nc, k=-1)
             iDu[Nc - 1, Nc - 1] = 1
             P_U += sparse.kron(iDu, QDu)
@@ -583,7 +598,6 @@ if __name__ == '__main__':
     axes[2].plot(tsim, usim[:,0], label="u")
     axes[2].plot(tsim, uref*np.ones(np.shape(tsim)), "r--", label="uref")
     axes[2].set_title("Force (N)")
-
 
     for ax in axes:
         ax.grid(True)
