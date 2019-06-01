@@ -61,7 +61,7 @@ if __name__ == '__main__':
 
     # Prediction horizon
     Np = 20
-    Nc = 15
+    Nc = 20
 
     K = MPCController(Ad,Bd,Np=Np, Nc=Nc, x0=x0,xref=xref,uminus1=uminus1,
                       Qx=Qx, QxN=QxN, Qu=Qu,QDu=QDu,
