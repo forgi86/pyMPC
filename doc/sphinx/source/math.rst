@@ -28,15 +28,15 @@ The MPC problem is:
         \bigg ]
     \end{multline}.
 
-Under the hood, pyMPC transofrms this optimization in a form that can be solved using a standard QP
-solver, i.e.,
+Under the hood, pyMPC transforms the original MPC optimization problem in a form that can be solved using a standard QP
+solver:
 
 .. math::
 
     \begin{align}
-     &\min \frac{1}{2} x^\top P x +  q^\top x \\
+     &\min \frac{1}{2} x_{q}^\top P  +  q^\top x_{q} \\
      &\text{subject to} \nonumber \\
-     &l \leq Ax \leq u
+     &l_{b} \leq Ax \leq u_{b}
     \end{align}
 
 
