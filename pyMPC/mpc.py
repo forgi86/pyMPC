@@ -280,12 +280,11 @@ class MPCController:
             if self.raise_error:
                 raise ValueError('OSQP did not solve the problem!')
 
-    def __controller_function__(self, x, u):
+    def __controller_function__(self, x, u, xref=None):
         """ This function is meant to be used for debug only.
         """
 
-        self.update(x,u)
-        self.solve()
+        self.update(x,u,xref=xref,solve=True)
         uMPC = self.output()
 
         return uMPC
