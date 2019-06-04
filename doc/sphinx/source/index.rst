@@ -6,11 +6,17 @@
 Welcome to pyMPC's documentation!
 =================================
 
-This is an introduction to pyMPC.
+pyMPC is an open-source python library for Model Predictive Control (MPC).
 
 Requirements
 
-This project depends on
+As a bare minimum, you will need:
+
+* `numpy <https://www.numpy.org/>`_
+* `scipy <https://www.scipy.org/>`_
+* `OSQP <https://osqp.org/>`_
+
+
 
 .. toctree::
    :maxdepth: 2

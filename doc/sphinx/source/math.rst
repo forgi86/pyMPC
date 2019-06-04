@@ -1,7 +1,7 @@
-The Math
+Mathematical Formuation
 =================================
 
-The MPC problem is:
+pyMPC solves the following optimization problem:
 
 .. math::
     \newcommand{\MPC}{\mathrm{MPC}}
@@ -28,7 +28,7 @@ The MPC problem is:
         \bigg ]
     \end{multline}.
 
-Under the hood, pyMPC transforms the original MPC optimization problem in a form that can be solved using a standard QP
+Under the hood, pyMPC transforms the MPC optimization problem above in a form that can be solved using a standard QP
 solver:
 
 .. math::
@@ -38,6 +38,4 @@ solver:
      &\text{subject to} \nonumber \\
      &l_{b} \leq Ax \leq u_{b}
     \end{align}
-
-
 
