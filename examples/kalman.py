@@ -21,6 +21,17 @@ def __second_dim__(X):
     return  m
 
 def kalman_filter_simple(A, B, C, D, Qn, Rn):
+    """ Design a Kalman filter for the discrete-time system
+     x_{k+1} = Ax_{k} + Bu_{k} + Iw_{k}
+     y_{k} = Cx_{k} + Du_{k} + I v_{k}
+     with known inputs u and sctochastic disturbances v, w.
+     In particular, v and w are zero mean, white Gaussian noise sources with
+     E[vv'] = Qn, E[ww'] = Rn, E['wv'] = 0
+
+    The Kalman filter has structure
+     \hat x_{k+1} = Ax_{k} + Bu_{k} + L(y_{k} - C\hat x{k} - Du_{k})
+     \hat y_{k}   = Cx_k + Du_k
+    """
     nx = __first_dim__(A)
     nw = nx  # number of uncontrolled inputs
     nu = __second_dim__(B) # number of controlled inputs

@@ -10,3 +10,6 @@ Main class documentation
 .. automodule:: mpc
    :members:
 
+.. automodule:: kalman
+   :members:
+
