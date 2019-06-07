@@ -4,7 +4,7 @@ import time
 import matplotlib.pyplot as plt
 from scipy.integrate import ode
 from scipy.interpolate import interp1d
-from kalman import kalman_filter_simple, kalman_filter, LinearStateEstimator
+from pyMPC.kalman import kalman_filter_simple, LinearStateEstimator
 from pyMPC.mpc import MPCController
 import control
 import control.matlab
