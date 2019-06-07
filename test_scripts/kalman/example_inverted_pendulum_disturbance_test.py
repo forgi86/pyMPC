@@ -70,12 +70,13 @@ if __name__ == '__main__':
     Cd = Cc
     Dd = Dc
 
-    std_npos = 1*0.005
-    std_nphi = 1*0.005
+    std_npos = 1*0.004
+    std_nphi = 1*0.004
 
     # Force disturbance
     wu = 10  # bandwidth of the force disturbance
-    std_du = 0.1
+    #std_du = 0.1
+    std_du = 0.0001
     Ts = 1e-3
     Hu = control.TransferFunction([1], [1 / wu, 1])
     Hu = Hu * Hu
@@ -115,10 +116,10 @@ if __name__ == '__main__':
     Dumax = np.array([100*Ts_MPC])
 
     # Objective function weights
-    Qx = sparse.diags([1.0, 0, 10.0, 0])   # Quadratic cost for states x0, x1, ..., x_N-1
-    QxN = sparse.diags([1.0, 0, 10.0, 0])  # Quadratic cost for xN
+    Qx = sparse.diags([1.0, 0, 5.0, 0])   # Quadratic cost for states x0, x1, ..., x_N-1
+    QxN = sparse.diags([1.0, 0, 5.0, 0])  # Quadratic cost for xN
     Qu = 0.0 * sparse.eye(1)        # Quadratic cost for u0, u1, ...., u_N-1
-    QDu = 0.1 * sparse.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
+    QDu = 1e-5/(Ts_MPC**2) * sparse.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
 
     # Initial state
     phi0 = 15*2*np.pi/360
@@ -130,7 +131,7 @@ if __name__ == '__main__':
 
     # Prediction horizon
     Np = 100
-    Nc = 100
+    Nc = 50
 
     K = MPCController(Ad,Bd,Np=Np, x0=x0,xref=xref,uminus1=uminus1,
                       Qx=Qx, QxN=QxN, Qu=Qu,QDu=QDu,
@@ -139,7 +140,8 @@ if __name__ == '__main__':
     K.setup()
 
     # Basic Kalman filter design
-    Q_kal =  np.diag([0.0001, 100, 0.0001, 100])
+#    Q_kal =  np.diag([0.0001, 100, 0.0001, 100]) # setting for force disturbance
+    Q_kal =  np.diag([0.1, 10, 0.1, 10])
     #Q_kal =  np.diag([100, 100, 100, 100])
     R_kal = 1*np.eye(ny)
     L, P, W = kalman_filter_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal)
@@ -195,6 +197,7 @@ if __name__ == '__main__':
             u_MPC, info_MPC = K.output(return_x_seq=True, return_status=True)  # u[i] = k(\hat x[i]) possibly computed at time instant -1
             x_MPC_pred[idx_MPC, :, :] = info_MPC['x_seq']  # x_MPC_pred[i,i+1,...| possibly computed at time instant -1]
             u_vec[idx_MPC, :] = u_MPC
+            x_est_vec[idx_MPC,:] = KF.x
 
             y_step = Cd.dot(system_dyn.y)  # y[i] measured from the system
             ymeas_step = y_step
@@ -246,16 +249,18 @@ if __name__ == '__main__':
 
 
     fig,axes = plt.subplots(3,1, figsize=(10,10), sharex=True)
-    axes[0].plot(t_vec, y_meas_vec[:, 0], "b", label='p_meas')
+    #axes[0].plot(t_vec, y_meas_vec[:, 0], "b", label='p_meas')
     axes[0].plot(t_vec_fast, x_vec_fast[:, 0], "k", label='p')
+    axes[0].plot(t_vec, x_est_vec[:, 0], "k--", label='p_est')
     axes[0].plot(t_vec_fast, x_ref_vec_fast[:,0], "r--", label="p_ref")
     idx_pred = 0
     axes[0].plot(t_vec[idx_pred:idx_pred+Np+1], y_OL_pred[idx_pred, :, 0], 'r', label='Off-line k-step prediction')
     axes[0].plot(t_vec[idx_pred:idx_pred+Np+1], y_MPC_pred[idx_pred, :, 0], 'c', label='MPC k-step prediction' )
     axes[0].set_title("Position (m)")
 
-    axes[1].plot(t_vec, y_meas_vec[:, 1]*RAD_TO_DEG, "b", label='phi_meas')
+    #axes[1].plot(t_vec, y_meas_vec[:, 1]*RAD_TO_DEG, "b", label='phi_meas')
     axes[1].plot(t_vec_fast, x_vec_fast[:, 2]*RAD_TO_DEG, 'k', label="phi")
+    axes[1].plot(t_vec, x_est_vec[:, 2]*RAD_TO_DEG, "k--", label='phi_est')
     axes[1].plot(t_vec_fast, x_ref_vec_fast[:,2]*RAD_TO_DEG, "r--", label="phi_ref")
     idx_pred = 0
     axes[1].plot(t_vec[idx_pred:idx_pred+Np+1], y_OL_pred[idx_pred, :, 1]*RAD_TO_DEG, 'r', label='Off-line k-step prediction')
@@ -272,6 +277,22 @@ if __name__ == '__main__':
         ax.grid(True)
         ax.legend()
 
+
+
+    fig,axes = plt.subplots(2,1, figsize=(10,10), sharex=True)
+    #axes[0].plot(t_vec, y_meas_vec[:, 0], "b", label='p_meas')
+    axes[0].plot(t_vec_fast, x_vec_fast[:, 1], "k", label='v')
+    axes[0].plot(t_vec, x_est_vec[:, 1], "k--", label='v_est')
+    axes[0].set_title("Position (m)")
+
+    #axes[1].plot(t_vec, y_meas_vec[:, 1]*RAD_TO_DEG, "b", label='phi_meas')
+    axes[1].plot(t_vec_fast, x_vec_fast[:, 3]*RAD_TO_DEG, 'k', label="w")
+    axes[1].plot(t_vec, x_est_vec[:, 3]*RAD_TO_DEG, "k--", label='w_est')
+
+
+    for ax in axes:
+        ax.grid(True)
+        ax.legend()
 
     fig, ax = plt.subplots(1, 1, figsize=(5, 5))
     ax.hist(t_calc_vec*1000)
