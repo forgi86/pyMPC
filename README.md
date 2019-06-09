@@ -41,3 +41,4 @@ for i in range(nsim):
 Full working examples are given in the [examples](examples) folder:
  * [Point mass with input force and friction](examples/example_point_mass.ipynb)
  * [Inverted pendulum on a cart](examples/example_inverted_pendulum.ipynb)
+ * [Inverted pendulum on a cart with kalman filter](examples/example_inverted_pendulum_kalman.ipynb)
