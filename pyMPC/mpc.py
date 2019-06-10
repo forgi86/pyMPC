@@ -482,10 +482,10 @@ class MPCController:
 
         # assign all
         if self.SOFT_ON:
-            self.P = sparse.block_diag([P_X, P_U, P_eps])
+            self.P = sparse.block_diag([P_X, P_U, P_eps], format='csc')
             self.q = np.hstack([q_X, q_U, q_eps])
         else:
-            self.P = sparse.block_diag([P_X, P_U])
+            self.P = sparse.block_diag([P_X, P_U],format='csc')
             self.q = np.hstack([q_X, q_U])
 
         self.A = A
