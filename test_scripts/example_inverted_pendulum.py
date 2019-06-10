@@ -3,8 +3,11 @@ import scipy.sparse as sparse
 import time
 import matplotlib.pyplot as plt
 from pyMPC.mpc import MPCController
+import warnings
 
 if __name__ == '__main__':
+
+    warnings.filterwarnings('error')
 
     # Constants #
     M = 0.5

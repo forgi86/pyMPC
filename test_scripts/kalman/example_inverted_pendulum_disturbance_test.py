@@ -286,8 +286,8 @@ if __name__ == '__main__':
     axes[0].set_title("Position (m)")
 
     #axes[1].plot(t_vec, y_meas_vec[:, 1]*RAD_TO_DEG, "b", label='phi_meas')
-    axes[1].plot(t_vec_fast, x_vec_fast[:, 3]*RAD_TO_DEG, 'k', label="w")
-    axes[1].plot(t_vec, x_est_vec[:, 3]*RAD_TO_DEG, "k--", label='w_est')
+    axes[1].plot(t_vec_fast, x_vec_fast[:, 3], 'k', label="w")
+    axes[1].plot(t_vec, x_est_vec[:, 3], "k--", label='w_est')
 
 
     for ax in axes:
