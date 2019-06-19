@@ -40,7 +40,7 @@ from the command line
 
    cd PYMPC_LOCAL_FOLDER
 
-where PYMPC_LOCAL_FOLDER is the folder where you have downloaded the code in step 2
+where PYMPC_LOCAL_FOLDER is the folder where you have just downloaded the code in step 2
 
 3. Install pyMPC in your python environment: run
 
