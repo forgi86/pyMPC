@@ -1,6 +1,14 @@
 # pyMPC
 
-Implementation of an MPC controller in python based on the <a href="https://osqp.org/">OSQP</a> solver.
+Implementation of a linear, constrained MPC controller in python.
+
+## Requirements
+
+pyMPC requires the following packages:
+* numpy
+* scipy
+* [OSQP](https://osqp.org/)
+* matplotlib
 
 ## Installation
 
