@@ -1,4 +1,4 @@
-Mathematical Formuation
+The Math
 =================================
 
 pyMPC solves the following optimization problem:
