@@ -5,7 +5,7 @@
 
 pyMPC
 =====
-
+---------------------------------------------
 A python library for Model Predictive Control
 ---------------------------------------------
 
@@ -15,31 +15,40 @@ The project is hosted on this `GitHub repository <https://github.com/forgi86/pyM
 Requirements
 ------------
 
-As a bare minimum, you will need:
+In order to run pyMPC, you need a python 3.x environment and the following packages:
 
 * `numpy <https://www.numpy.org/>`_
 * `scipy <https://www.scipy.org/>`_
 * `OSQP <https://osqp.org/>`_
 * `matplotlib <https://matplotlib.org/>`_
 
-All dependencies should be installed automatically following the pyMPC installation instructions below
+The installation procedure below should take case of installing pyMPC with all its dependencies.
 
 Installation
 ------------
-1. Copy or clone the pyMPC project in a local folder. For instance, run
+1. Copy or clone the pyMPC project into a local folder. For instance, run
 
 .. code-block:: bash
 
    git clone https://github.com/forgi86/pyMPC.git
 
+from the command line
 
-2. Install pyMPC by running
+2. Navigate to your local pyMPC folder
+
+.. code-block:: bash
+
+   cd PYMPC_LOCAL_FOLDER
+
+where PYMPC_LOCAL_FOLDER is the folder where you have downloaded the code in step 2
+
+3. Install pyMPC in your python environment: run
 
 .. code-block:: bash
 
    pip install -e .
 
-in the pyMPC root folder (where the file setup.py is located).
+from the command line, in the working folder PYMPC_LOCAL_FOLDER
 
 Usage
 -----
