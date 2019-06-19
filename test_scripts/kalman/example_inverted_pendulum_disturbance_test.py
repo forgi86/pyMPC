@@ -278,17 +278,18 @@ if __name__ == '__main__':
         ax.legend()
 
 
-
     fig,axes = plt.subplots(2,1, figsize=(10,10), sharex=True)
     #axes[0].plot(t_vec, y_meas_vec[:, 0], "b", label='p_meas')
     axes[0].plot(t_vec_fast, x_vec_fast[:, 1], "k", label='v')
     axes[0].plot(t_vec, x_est_vec[:, 1], "k--", label='v_est')
-    axes[0].set_title("Position (m)")
+    axes[0].set_title("Linear velocity (m/s)")
+    axes[0].grid(True)
 
     #axes[1].plot(t_vec, y_meas_vec[:, 1]*RAD_TO_DEG, "b", label='phi_meas')
     axes[1].plot(t_vec_fast, x_vec_fast[:, 3], 'k', label="w")
     axes[1].plot(t_vec, x_est_vec[:, 3], "k--", label='w_est')
-
+    axes[1].set_title("Angular velocity (rad/s)")
+    axes[1].grid(True)
 
     for ax in axes:
         ax.grid(True)
