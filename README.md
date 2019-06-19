@@ -4,15 +4,11 @@ Implementation of an MPC controller in python based on the <a href="https://osqp
 
 ## Installation
 
-1. Install the [QSQP](https://osqp.org/) solver.
-```
-pip install osqp
-```
-2. Copy or clone the pyMPC project in a local folder. For instance, run 
+1. Copy or clone the pyMPC project in a local folder. For instance, run 
 ```
 git clone https://github.com/forgi86/pyMPC.git
 ```
-3. Install pyMPC by running
+2. Install pyMPC by running
 ```
 pip install -e .
 ```
