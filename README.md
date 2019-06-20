@@ -12,15 +12,17 @@ pyMPC requires the following packages:
 
 ## Installation
 
-1. Copy or clone the pyMPC project in a local folder. For instance, run 
+1. Get a local copy the pyMPC project. For instance, run 
 ```
 git clone https://github.com/forgi86/pyMPC.git
 ```
+in a terminal to clone the project using git. Alternatively, download the zipped pyMPC project from [this link](https://github.com/forgi86/pyMPC/zipball/master) and extract it in a local folder
+
 2. Install pyMPC by running
 ```
 pip install -e .
 ```
-in the pyMPC root folder (where the file setup.py is located).
+in the pyMPC project root folder (where the file setup.py is located).
 
 ## Usage 
 
