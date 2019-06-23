@@ -181,6 +181,7 @@ class MPCController:
 
     def output(self, return_x_seq=False, return_u_seq=False, return_eps_seq=False, return_status=False, return_obj_val=False):
         """ Return the MPC controller output uMPC, i.e., the first element of the optimal input sequence and assign is to self.uminus1_rh. """
+        self.uminus1_rh = self.u_MPC
         return self.u_MPC
 
     def update(self,x,u=None,xref=None,solve=True):
@@ -294,7 +295,7 @@ if __name__ == '__main__':
 
     # Prediction horizon
     #Np = 25
-    Np = 30
+    Np = 2
     Nc = None
 
     K = MPCController(Ad,Bd,Np=Np,Nc=Nc,x0=x0,xref=xref,uminus1=uminus1,
@@ -315,7 +316,7 @@ if __name__ == '__main__':
     for i in range(nsim):
         uMPC = K.output()
         xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # system step
-        K.update(xstep) # update with measurement
+        K.update(x=xstep,u=uMPC) # update with measurement
         K.solve()
         xsim[i,:] = xstep
         usim[i,:] = uMPC
