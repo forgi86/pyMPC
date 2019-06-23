@@ -4,25 +4,34 @@ import scipy.linalg
 
 if __name__ == '__main__':
 
-    Ac = np.array([[1,2],
-                  [3,4]], dtype = np.float)
+    Ts = 0.2 # sampling time (s)
+    M = 2    # mass (Kg)
+    b = 0.3  # friction coefficient (N*s/m)
 
-    Bc = np.array([[1, 2],[2, 1]])
-    [nx, nu] = Bc.shape # number of states and number or inputs
-    [nx1, nx2] = Ac.shape
+    Ad = np.array([
+        [1.0, Ts],
+        [0,  1.0 -b/M*Ts]
+    ])
+    Bd = np.array([
+      [0.0],
+      [Ts/M]])
 
-    Qx = np.diag([2,2])
-    QxN = 2*Qx
-    Qu = np.eye(nu)
-    QDu = np.eye(nu)
+    [nx, nu] = Bd.shape # number of states and number or inputs
+    [nx1, nx2] = Ad.shape
 
+    # Objective function
+    Qx = np.diag([0.5, 0.1])   # Quadratic cost for states x0, x1, ..., x_N-1
+    QxN = np.diag([0.5, 0.1])  # Quadratic cost for xN
+    Qu = 2.0 * np.eye(1)        # Quadratic cost for u0, u1, ...., u_N-1
+    QDu = 10.0 * np.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
 
     assert(nx1 == nx2)
     assert(nx1 == nx)
 
     Np = 4
 
-    x0 = np.array([1,0])
+    # Initial state
+    x0 = np.array([0.1, 0.2]) # initial state
     x0 = x0.reshape(-1,1)
     xref = np.ones(nx)
     Xref = np.kron(np.ones((Np,1)), xref.reshape(-1,1))
@@ -41,14 +50,14 @@ if __name__ == '__main__':
             A_km1 = np.eye(nx)
         else:
             A_km1 = A_cal[(k - 1) * nx:(k) * nx, 0:nx]
-        A_cal[k * nx:(k + 1) * nx, 0:nx] = Ac @ A_km1
+        A_cal[k * nx:(k + 1) * nx, 0:nx] = Ad @ A_km1
 
     for k in range(Np):
         if k == 0:
             A_k = np.eye(nx)
         else:
             A_k = A_cal[(k - 1) * nx:(k) * nx, 0:nx]
-        A_kB = A_k @ Bc
+        A_kB = A_k @ Bd
         for p in range(Np-k):
             B_cal[(k+p)*nx:(k+p+1)*nx, p*nu:(p+1)*nu] = A_kB
 

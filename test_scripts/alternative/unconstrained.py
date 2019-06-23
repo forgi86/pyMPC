@@ -131,26 +131,31 @@ class MPCController:
         QxN = self.QxN
         nx = self.nx
         nu = self.nu
+        Ad = self.Ad
+        Bd = self.Bd
+        QDu = self.QDu
 
         self.x0_rh = self.x0
         self.uminus1_rh = self.uminus1
 
         self.A_cal = np.empty((Np * nx, nx))
-        self.B_cal = np.zeros((Np * nx, Np * nu))
+        self.B_cal = np.empty((Np * nx, Np * nu))
 
+        # build A_cal
         for k in range(0, Np):
             if k == 0:
                 A_km1 = np.eye(nx)
             else:
                 A_km1 = self.A_cal[(k - 1) * nx:(k) * nx, 0:nx]
-            self.A_cal[k * nx:(k + 1) * nx, 0:nx] = Ac @ A_km1
+            self.A_cal[k * nx:(k + 1) * nx, 0:nx] = Ad @ A_km1
 
+        # build B_cal
         for k in range(Np):
             if k == 0:
                 A_k = np.eye(nx)
             else:
                 A_k = self.A_cal[(k - 1) * nx:(k) * nx, 0:nx]
-            A_kB = A_k @ Bc
+            A_kB = A_k @ Bd
             for p in range(Np - k):
                 self.B_cal[(k + p) * nx:(k + p + 1) * nx, p * nu:(p + 1) * nu] = A_kB
 
@@ -162,10 +167,11 @@ class MPCController:
         iDu[Np - 1, Np - 1] = 1
         self.Q_cal_Du = np.kron(iDu, QDu)
 
-        self.P = np.transpose(self.B_cal) @ self.Q_cal_x @ self.B_cal
+        self.P = np.transpose(self.B_cal) @ self.Q_cal_x @ self.B_cal + self.Q_cal_u + self.Q_cal_Du
         self.P_inv = np.linalg.inv(self.P)
-        self.p_ubar = np.vstack([-QDu,  # u0
-                          np.zeros(((Np - 1)*nu, nu))])  # u1..uN-1
+        self.p_uminus1 = np.vstack([-QDu,  # u0
+                                    np.zeros(((Np - 1)*nu, nu))  # u1..uN-1
+                                    ])
 
         self.p_x0 = np.transpose(self.B_cal) @ self.Q_cal_x @ self.A_cal
         self.p_Xref = -np.transpose(self.B_cal) @ self.Q_cal_x
@@ -173,7 +179,7 @@ class MPCController:
 
         self.k_x0 = -self.P_inv @ self.p_x0
         self.k_Xref = -self.P_inv @ self.p_Xref
-        self.k_ubar = -self.P_inv @ self.p_ubar
+        self.k_uminus1 = -self.P_inv @ self.p_uminus1
         self.k_Uref = -self.P_inv @ self.p_Uref
 
         if solve:
@@ -220,10 +226,10 @@ class MPCController:
         x0 = self.x0_rh
         uminus1 = self.uminus1_rh
 
-        self.u_MPC_all = (self.k_x0 @ x0).ravel() #+\
-                         #(self.k_Xref @ self.Xref).ravel() + \
-                         #(self.k_Uref @ self.Uref).ravel() +\
-                         #(self.k_ubar @ uminus1).ravel()
+        self.u_MPC_all = (self.k_x0 @ x0).ravel() +\
+                         (self.k_Xref @ self.Xref).ravel() + \
+                         (self.k_Uref @ self.Uref).ravel() +\
+                         (self.k_uminus1 @ uminus1).ravel()
 
         self.u_MPC_all = self.u_MPC_all.reshape(-1, nu)
         self.u_MPC = self.u_MPC_all[0, :]
@@ -245,11 +251,12 @@ class MPCController:
 
         self.k_x0 = -self.P_inv @ self.p_x0
         self.k_Xref = -self.P_inv @ self.p_Xref
-        self.k_ubar = -self.P_inv @ self.p_ubar
+        self.k_uminus1 = -self.P_inv @ self.p_uminus1
         self.k_Uref = -self.P_inv @ self.p_Uref
 
     def _compute_QP_matrices_(self):
         pass
+
 
 if __name__ == '__main__':
     import time
@@ -267,16 +274,6 @@ if __name__ == '__main__':
       [0.0],
       [Ts/M]])
 
-    # Continous-time matrices (just for reference)
-    Ac = np.array([
-        [0.0, 1.0],
-        [0, -b/M]]
-    )
-    Bc = np.array([
-        [0.0],
-        [1/M]
-    ])
-
     # Reference input and states
     pref = 7.0
     vref = 0.0
@@ -287,15 +284,15 @@ if __name__ == '__main__':
     # Objective function
     Qx = np.diag([0.5, 0.1])   # Quadratic cost for states x0, x1, ..., x_N-1
     QxN = np.diag([0.5, 0.1])  # Quadratic cost for xN
-    Qu = 2.0 * np.eye(1)        # Quadratic cost for u0, u1, ...., u_N-1
-    QDu = 10.0 * np.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
+    Qu = 2 * np.eye(1)        # Quadratic cost for u0, u1, ...., u_N-1
+    QDu = 10 * np.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
 
     # Initial state
     x0 = np.array([0.1, 0.2]) # initial state
 
     # Prediction horizon
     #Np = 25
-    Np = 2
+    Np = 30
     Nc = None
 
     K = MPCController(Ad,Bd,Np=Np,Nc=Nc,x0=x0,xref=xref,uminus1=uminus1,

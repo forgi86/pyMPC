@@ -19,6 +19,7 @@
 \newcommand{\Np}{{N_p}}
 \newcommand{\Nc}{{N_c}}
 \newcommand{\blkdiag}{\text{blkdiag}}
+\newcommand{\baru}{u_{-1}}
 
 \begin{document}
 
@@ -419,7 +420,7 @@ u_{\Np-1}
 \begin{equation}
  J_{Q_{\Delta u}} =  \frac{1}{2} U^\top \mathcal{Q}_{\Delta u} U +   
  \begin{bmatrix}
-  -{\bar u}^\top Q_{\Delta u} & 0 & \dots  & 0
+  -{\baru}^\top Q_{\Delta u} & 0 & \dots  & 0
  \end{bmatrix} U
 \end{equation}
 
@@ -434,28 +435,48 @@ Summing up and expanding terms:
  -U_{ref}^\top\mathcal{Q}_u U +\\ 
  +\frac{1}{2} U^\top \mathcal{Q}_{\Delta u} U +
 \begin{bmatrix}
-  -{\bar u}^\top Q_{\Delta u} & 0 & \dots  & 0
+  -{\baru}^\top Q_{\Delta u} & 0 & \dots  & 0
  \end{bmatrix} U 
 \end{multline}
 Neglecting constant terms and collecting:
 \begin{multline}
- J = C + \frac{1}{2} U^\top \overbrace{\big(\mathcal{B}^\top \mathcal{Q}_x \mathcal{B}\big)} ^{=\mathcal{P}}U + \\
+ J = C + \frac{1}{2} U^\top \overbrace{\big(\mathcal{B}^\top \mathcal{Q}_x \mathcal{B} + \mathcal{Q}_u + \mathcal{Q}_{\Delta u}\big)} ^{=\mathcal{P}}U + \\
  \overbrace{\bigg [(\mathcal{A}x_o - X_{ref})^\top \mathcal{Q}_x \mathcal{B} -U_{ref}^\top\mathcal{Q}_u -
  \begin{bmatrix}
-  {\bar u}^\top Q_{\Delta u} & 0 & \dots  & 0
+  {\baru}^\top Q_{\Delta u} & 0 & \dots  & 0
  \end{bmatrix}\bigg)}^{=b^\top} U
 \end{multline}
-Thus, be have
+Thus, we have
 \begin{equation}
- b = \mathcal{B}^\top \mathcal{Q}_x(\mathcal{A}x_0 - X_{ref}) - \mathcal{Q}_uU_{ref} - 
+ p = \mathcal{B}^\top \mathcal{Q}_x(\mathcal{A}x_0 - X_{ref}) - \mathcal{Q}_uU_{ref} + 
   \begin{bmatrix}
- -Q_{\Delta u} \bar{u} \\ 0 \\ \vdots \\0
+ -Q_{\Delta u} \baru \\ 0 \\ \vdots \\0
  \end{bmatrix}
 \end{equation}
-
-For the unconstrained problem the minimum is in 
+expanding
 \begin{equation}
- U^{opt} = -P^{-1}b
+ p = \overbrace{\mathcal{B}^\top \mathcal{Q}_x\mathcal{A}}^{=p_{x_0}}x_0  \;+\; \overbrace{-\mathcal{B}^\top \mathcal{Q}_x}^{p_{X_{ref}}}X_{ref}\;+\; \overbrace{-\mathcal{Q}_u}^{=p_{U_{ref}}}U_{ref} + 
+\overbrace{
+  \begin{bmatrix}
+ -Q_{\Delta u} \\ 0 \\ \vdots \\0
+ \end{bmatrix}
+}^{=p_{\baru}}
+\baru
 \end{equation}
+For an unconstrained problem the minimum is in 
+\begin{equation}
+ U^{opt} = -P^{-1}p
+\end{equation}
+Expanding
+\begin{equation}
+ U^{opt} = k_{x_0} x_0 + k_{X_{ref}}X_{ref} + k_{U_{ref}} U_{ref} k_{\baru} \baru
+\end{equation}
+with 
+\begin{align}
+k_{x_0} &= -P^{-1}p_{x_0}\\
+k_{X_{ref}} &= -P^{-1}p_{X_{ref}}\\
+k_{U_{ref}} &= -P^{-1}p_{U_{ref}}\\
+k_{\baru} &= -P^{-1}p_{\baru} 
+\end{align}
 \end{document} 
 
