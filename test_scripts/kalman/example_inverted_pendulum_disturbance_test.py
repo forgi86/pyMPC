@@ -219,14 +219,14 @@ if __name__ == '__main__':
 
         # Controller simulation step at rate Ts_MPC
         if run_MPC:
-            time_calc_start = time.time()
+            time_calc_start = time.perf_counter()
             # Kalman filter: update and predict
             KF.update(ymeas_step) # \hat x[i|i]
             KF.predict(u_MPC)    # \hat x[i+1|i]
             # MPC update
             #K.update(system_dyn.y, u_MPC, xref=xref_MPC) # update with measurement
             K.update(KF.x, u_MPC, xref=xref_MPC)  # update with measurement
-            t_calc_vec[idx_MPC,:] = time.time() - time_calc_start
+            t_calc_vec[idx_MPC,:] = time.perf_counter() - time_calc_start
 
         # System simulation step at rate Ts_fast
         system_dyn.set_f_params(u_fast)
