@@ -317,9 +317,16 @@ class MPCController:
         q_X = np.zeros((Np + 1) * nx)  # x_N
         self.J_CNST = 0.0
         if self.JX_ON:
-            self.J_CNST += 1/2*Np*(xref.dot(QxN.dot(xref))) + 1/2*xref.dot(QxN.dot(xref))
-            q_X += np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),       # x0... x_N-1
-                           -QxN.dot(xref)])                             # x_N
+#            self.J_CNST += 1/2*Np*(xref.dot(QxN.dot(xref))) + 1/2*xref.dot(QxN.dot(xref)) # TODO adjust for non-constant xref
+
+            if xref.ndim == 2 and xref.shape[0] >= Np + 1: # xref is a vector per time-instant! experimental feature
+                #for idx_ref in range(Np):
+                #    q_X[idx_ref * nx:(idx_ref + 1) * nx] += -Qx.dot(xref[idx_ref, :])
+                #q_X[Np * nx:(Np + 1) * nx] += -QxN.dot(xref[Np, :])
+                q_X += (-xref.reshape(1, -1) @ (self.P_X)).ravel() # way faster implementation of the same formula commented above
+            else:
+                q_X += np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),       # x0... x_N-1
+                               -QxN.dot(xref)])                             # x_N
         else:
             pass
 
@@ -381,10 +388,17 @@ class MPCController:
         if self.JX_ON:
             P_X += sparse.block_diag([sparse.kron(sparse.eye(Np), Qx),   # x0...x_N-1
                                       QxN])                              # xN
-            q_X += np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),       # x0... x_N-1
-                              -QxN.dot(xref)])                           # x_N
 
-            self.J_CNST += 1/2*Np*(xref.dot(QxN.dot(xref))) + 1/2*xref.dot(QxN.dot(xref))
+            if xref.ndim == 2 and xref.shape[0] >= Np + 1: # xref is a vector per time-instant! experimental feature
+                #for idx_ref in range(Np):
+                #    q_X[idx_ref * nx:(idx_ref + 1) * nx] += -Qx.dot(xref[idx_ref, :])
+                #q_X[Np * nx:(Np + 1) * nx] += -QxN.dot(xref[Np, :])
+                q_X += (-xref.reshape(1, -1) @ (self.P_X)).ravel()
+            else:
+                q_X += np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),       # x0... x_N-1
+                               -QxN.dot(xref)])                             # x_N
+
+#            self.J_CNST += 1/2*Np*(xref.dot(QxN.dot(xref))) + 1/2*xref.dot(QxN.dot(xref)) # TODO adapt for non-constant xref
         else:
             pass
 
@@ -492,6 +506,7 @@ class MPCController:
         self.l = l
         self.u = u
 
+        self.P_X = P_X
         # Debug assignments
 
 #        self.P_x = P_X
@@ -558,7 +573,8 @@ if __name__ == '__main__':
     Np = 25
     Nc = 10
 
-    K = MPCController(Ad,Bd,Np=Np,Nc=Nc,x0=x0,xref=xref,uminus1=uminus1,
+    Xref = np.kron(np.ones((Np + 1,1)), xref)
+    K = MPCController(Ad,Bd,Np=Np,Nc=Nc,x0=x0,xref=Xref,uminus1=uminus1,
                       Qx=Qx, QxN=QxN, Qu=Qu,QDu=QDu,
                       xmin=xmin,xmax=xmax,umin=umin,umax=umax,Dumin=Dumin,Dumax=Dumax)
     K.setup()
@@ -576,7 +592,7 @@ if __name__ == '__main__':
     for i in range(nsim):
         uMPC, info = K.output(return_u_seq=True, return_x_seq=True, return_eps_seq=True, return_status=True)
         xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # system step
-        K.update(xstep) # update with measurement
+        K.update(xstep, xref=Xref) # update with measurement
         K.solve()
         xsim[i,:] = xstep
         usim[i,:] = uMPC
