@@ -4,6 +4,25 @@ import scipy.sparse as sparse
 import osqp
 import warnings
 
+
+def __is_vector__(vec):
+    if vec.ndim == 1:
+        return True
+    else:
+        if vec.ndim == 2:
+            if vec.shape[0] == 1 or vec.shape[1] == 0:
+                return True
+        else:
+            return False
+        return False
+
+
+def __is_matrix__(mat):
+    if mat.ndim == 2:
+        return True
+    else:
+        return False
+
 class MPCController:
     """ This class implements an MPC controller
 
@@ -56,25 +75,49 @@ class MPCController:
                  Qx=None, QxN=None, Qu=None, QDu=None,
                  xmin=None, xmax=None, umin=None,umax=None,Dumin=None,Dumax=None,
                  eps_feas = 1e6, eps_rel=1e-3, eps_abs=1e-3):
-        self.Ad = Ad
-        self.Bd = Bd
-        self.nx, self.nu = self.Bd.shape # number of states and number or inputs
-        self.Np = Np # assert
+
+        if Ad.ndim == 2 and (Ad.shape[0] == Ad.shape[1]):
+            self.Ad = Ad
+            self.nx = Ad.shape[0] # number of states
+        else:
+            raise ValueError("Ad should be a square matrix of dimension (nx,nx)!")
+
+        if Bd.ndim == 2 and Bd.shape[0] == self.nx:
+            self.Bd = Bd
+            self.nu = Bd.shape[1] # number of inputs
+        else:
+            raise ValueError("Bd should be a matrix of dimension (nx, nu)!")
+
+        if Np > 1:
+            self.Np = Np # assert
+        else:
+            raise ValueError("Np should be > 1!")
 
         if Nc is not None:
-            assert(Nc <= Np)
-            self.Nc = Nc
+            if Nc <= Np:
+                self.Nc = Nc
+            else:
+                raise ValueError("Nc should be <= Np!")
         else:
             self.Nc = self.Np
 
         # x0 handling
         if x0 is not None:
-            self.x0 = x0
+            if __is_vector__(x0) and x0.size == self.nx:
+                self.x0 = x0.ravel()
+            else:
+                raise ValueError("nx should be an array of dimension (nx,)!")
         else:
             self.x0 = np.zeros(self.nx)
+
         # reference handing
         if xref is not None:
-            self.xref = xref # assert...
+            if __is_vector__(xref) and xref.size == self.nx:
+                self.xref = xref.ravel()
+            elif __is_matrix__(xref) and xref.shape[1] == self.nx and xref.shape[0] >= self.Np:
+                self.xref = xref
+            else:
+                raise ValueError("xref should be either a vector of shape (nx,) or a matrix of shape (Np+1, nx)!")
         else:
             self.xref = np.zeros(self.nx)
 
@@ -516,7 +559,6 @@ class MPCController:
         #self.Aineq_du = Aineq_du
         #self.leq_dyn = leq_dyn
         #self.lineq_du = lineq_du
-
 
 if __name__ == '__main__':
     import time

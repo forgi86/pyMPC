@@ -20,6 +20,46 @@ def __second_dim__(X):
         m = sp.size(X,1)
     return  m
 
+def kalman_filter(A, B, C, D, Qn, Rn, Nn=None):
+    """ Design a Kalman filter for the discrete-time system
+     x_{k+1} = Ax_{k} + Bu_{k} + Gw_{k}
+     y_{k} = Cx_{k} + Du_{k} + Hw_{k} + v_{k}
+     with known inputs u and sctochastic disturbances v, w.
+     In particular, v and w are zero mean, white Gaussian noise sources with
+     E[vv'] = Qn, E[ww'] = Rn, E['wv'] = Nn
+
+    The Kalman filter has structure
+     \hat x_{k+1} = Ax_{k} + Bu_{k} + L(y_{k} - C\hat x{k} - Du_{k})
+     \hat y_{k}   = Cx_k + Du_k
+    """
+    nx = np.shape(A)[0]
+    nw = np.shape(Qn)[0] # number of uncontrolled inputs
+    nu = np.shape(B)[1] - nw # number of controlled inputs
+    ny = np.shape(C)[0]
+
+    if Nn is None:
+        Nn = np.zeros((nw, ny))
+
+    E = np.eye(nx)
+    Bu = B[:, 0:nu]
+    Du = D[:, 0:nu]
+    Bw = B[:, nu:]
+    Dw = D[:, nu:]
+
+    Hn = Dw @ Nn
+    Rb = Rn + Hn + np.transpose(Hn) + Dw @ Qn @ np.transpose(Dw)
+    Qb = Bw @ Qn @ np.transpose(Bw)
+    Nb = Bw @ (Qn @ np.transpose(Dw) + Nn)
+
+    # Enforce symmetry
+    Qb = (Qb + np.transpose(Qb))/2
+    Rb = (Rb+np.transpose(Rb))/2
+
+    P,W,K, = control.dare(np.transpose(A), np.transpose(C), Qb, Rb, Nb, np.transpose(E))
+
+    L = np.transpose(K) # Kalman gain
+    return L,P,W
+
 def kalman_filter_simple(A, B, C, D, Qn, Rn):
     r"""Design a Kalman filter for the discrete-time system
 
@@ -55,8 +95,8 @@ def kalman_filter_simple(A, B, C, D, Qn, Rn):
 class LinearStateEstimator:
     def __init__(self, x0, A, B, C, D, L):
 
-        self.x = x0
-        self.y = C @ x0
+        self.x = np.copy(x0)
+        self.y = C @ self.x0
         self.A = A
         self.B = B
         self.C = C

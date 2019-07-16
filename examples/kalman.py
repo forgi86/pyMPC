@@ -45,7 +45,7 @@ def kalman_filter_simple(A, B, C, D, Qn, Rn):
 class LinearStateEstimator:
     def __init__(self, x0, A, B, C, D, L):
 
-        self.x = x0
+        self.x = np.copy(x0)
         self.y = C @ x0
         self.A = A
         self.B = B
