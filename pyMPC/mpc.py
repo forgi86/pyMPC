@@ -306,6 +306,7 @@ class MPCController:
         QxN = self.QxN
         Qu = self.Qu
         xref = self.xref
+        P_X = self.P_X
 
         self.l[:nx] = -x0_rh
         self.u[:nx] = -x0_rh
@@ -323,7 +324,7 @@ class MPCController:
                 #for idx_ref in range(Np):
                 #    q_X[idx_ref * nx:(idx_ref + 1) * nx] += -Qx.dot(xref[idx_ref, :])
                 #q_X[Np * nx:(Np + 1) * nx] += -QxN.dot(xref[Np, :])
-                q_X += (-xref.reshape(1, -1) @ (self.P_X)).ravel() # way faster implementation of the same formula commented above
+                q_X += (-xref.reshape(1, -1) @ (P_X)).ravel() # way faster implementation of the same formula commented above
             else:
                 q_X += np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),       # x0... x_N-1
                                -QxN.dot(xref)])                             # x_N
@@ -393,7 +394,7 @@ class MPCController:
                 #for idx_ref in range(Np):
                 #    q_X[idx_ref * nx:(idx_ref + 1) * nx] += -Qx.dot(xref[idx_ref, :])
                 #q_X[Np * nx:(Np + 1) * nx] += -QxN.dot(xref[Np, :])
-                q_X += (-xref.reshape(1, -1) @ (self.P_X)).ravel()
+                q_X += (-xref.reshape(1, -1) @ (P_X)).ravel()
             else:
                 q_X += np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),       # x0... x_N-1
                                -QxN.dot(xref)])                             # x_N
