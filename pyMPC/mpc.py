@@ -74,15 +74,15 @@ class MPCController:
                  x0=None, xref=None, uref=None, uminus1=None,
                  Qx=None, QxN=None, Qu=None, QDu=None,
                  xmin=None, xmax=None, umin=None,umax=None,Dumin=None,Dumax=None,
-                 eps_feas = 1e6, eps_rel=1e-3, eps_abs=1e-3):
+                 eps_feas=1e6, eps_rel=1e-3, eps_abs=1e-3):
 
-        if Ad.ndim == 2 and (Ad.shape[0] == Ad.shape[1]):
+        if __is_matrix__(Ad) and (Ad.shape[0] == Ad.shape[1]):
             self.Ad = Ad
             self.nx = Ad.shape[0] # number of states
         else:
             raise ValueError("Ad should be a square matrix of dimension (nx,nx)!")
 
-        if Bd.ndim == 2 and Bd.shape[0] == self.nx:
+        if __is_matrix__(Bd) and Bd.shape[0] == self.nx:
             self.Bd = Bd
             self.nu = Bd.shape[1] # number of inputs
         else:
@@ -122,64 +122,100 @@ class MPCController:
             self.xref = np.zeros(self.nx)
 
         if uref is not None:
-            self.uref = uref # assert...
+            if __is_vector__(uref) and uref.size == self.nu:
+                self.uref = uref.ravel() # assert...
+            else:
+                raise ValueError("uref should be a vector of shape (nu,)!")
         else:
             self.uref = np.zeros(self.nu)
 
         if uminus1 is not None:
-            self.uminus1 = uminus1
+            if __is_vector__(uminus1) and uminus1.size == self.nu:
+                self.uminus1 = uminus1
+            else:
+                raise ValueError("uminus1 should be a vector of shape (nu,)!")
         else:
             self.uminus1 = self.uref
 
         # weights handling
         if Qx is not None:
-            self.Qx = Qx
+            if __is_matrix__(Qx) and Qx.shape[0] == self.nx and Qx.shape[1] == self.nx:
+                self.Qx = Qx
+            else:
+                raise ValueError("Qx should be a matrix of shape (nx,nx)!")
         else:
             self.Qx = np.zeros((self.nx, self.nx)) # sparse
 
         if QxN is not None:
-            self.QxN = QxN
+            if __is_matrix__(QxN) and QxN.shape[0] == self.nx and Qx.shape[1] == self.nx:
+                self.QxN = QxN
+            else:
+                raise ValueError("QxN should be a square matrix of shape (nx,nx)!")
         else:
             self.QxN = self.Qx # sparse
 
         if Qu is not None:
-            self.Qu = Qu
+            if __is_matrix__(Qu) and Qu.shape[0] == self.nu and Qu.shape[1] == self.nu:
+                self.Qu = Qu
+            else:
+                raise ValueError("Qu should be a square matrix of shape (nu,nu)!")
         else:
             self.Qu = np.zeros((self.nu, self.nu))
 
         if QDu is not None:
-            self.QDu = QDu
+            if __is_matrix__(QDu) and QDu.shape[0] == self.nu and QDu.shape[1] == self.nu:
+                self.QDu = QDu
+            else:
+                raise ValueError("QDu should be a square matrix of shape (nu, nu)!")
         else:
             self.QDu = np.zeros((self.nu, self.nu))
 
         # constraints handling
         if xmin is not None:
-            self.xmin = xmin # assert...
+            if __is_vector__(xmin) and xmin.size == self.nx:
+                self.xmin = xmin.ravel() # assert...
+            else:
+                raise ValueError("xmin should be a vector of shape (nx,)!")
         else:
             self.xmin = -np.ones(self.nx)*np.inf
 
         if xmax is not None:
-            self.xmax = xmax # assert...
+            if __is_vector__(xmax) and xmax.size == self.nx:
+                self.xmax = xmax # assert...
+            else:
+                raise ValueError("xmax should be a vector of shape (nx,)!")
         else:
             self.xmax = np.ones(self.nx)*np.inf
 
         if umin is not None:
-            self.umin = umin # assert...
+            if __is_vector__(umin) and umin.size == self.nu:
+                self.umin = umin # assert...
+            else:
+                raise ValueError("umin should be a vector of shape (nu,)!")
         else:
             self.umin = -np.ones(self.nu)*np.inf
 
         if umax is not None:
-            self.umax = umax # assert...
+            if __is_vector__(umax) and umax.size == self.nu:
+                self.umax = umax # assert...
+            else:
+                raise ValueError("umax should be a vector of shape (nu,)!")
         else:
             self.umax = np.ones(self.nu)*np.inf
 
         if Dumin is not None:
-            self.Dumin = Dumin # assert...
+            if __is_vector__(Dumin) and Dumin.size == self.nu:
+                self.Dumin = Dumin # assert...
+            else:
+                raise ValueError("Dumin should be a vector of shape (nu,)!")
         else:
             self.Dumin = -np.ones(self.nu)*np.inf
 
         if Dumax is not None:
-            self.Dumax = Dumax # assert...
+            if __is_vector__(Dumax) and Dumax.size == self.nu:
+                self.Dumax = Dumax # assert...
+            else:
+                raise ValueError("Dumax should be a vector of shape (nu,)!")
         else:
             self.Dumax = np.ones(self.nu)*np.inf
 
@@ -189,15 +225,16 @@ class MPCController:
         self.eps_rel = eps_rel
         self.eps_abs = eps_abs
 
-        self.raise_error = False
         self.u_failure = self.uref # value provided when the MPC solver fails.
 
+        self.raise_error = False # Raise an error when MPC optimization fails
         self.JX_ON = True # Cost function terms in X active
         self.JU_ON = True # Cost function terms in U active
         self.JDU_ON = True # Cost function terms in Delta U active
         self.SOFT_ON = True # Soft constraints active
 
         self.prob = osqp.OSQP()
+
         self.res = None
         self.P = None
         self.q = None
@@ -206,8 +243,7 @@ class MPCController:
         self.u = None
         self.x0_rh = None
         self.uminus1_rh = None
-
-        self.J_CNST = None # Constant to be added to the optimal value
+        self.J_CNST = None # Constant term of the cost function
 
     def setup(self, solve=True):
         """ Set-up the QP problem.
@@ -218,14 +254,13 @@ class MPCController:
                If True, also solve the QP problem.
 
         """
-        self.x0_rh = self.x0
-        self.uminus1_rh = self.uminus1
+        self.x0_rh = np.copy(self.x0)
+        self.uminus1_rh = np.copy(self.uminus1)
         self._compute_QP_matrices_()
         self.prob.setup(self.P, self.q, self.A, self.l, self.u, warm_start=True, verbose=False, eps_abs=self.eps_rel, eps_rel=self.eps_abs)
 
         if solve:
             self.solve()
-
 
     def output(self, return_x_seq=False, return_u_seq=False, return_eps_seq=False, return_status=False, return_obj_val=False):
         """ Return the MPC controller output uMPC, i.e., the first element of the optimal input sequence and assign is to self.uminus1_rh.
