@@ -8,5 +8,5 @@ setup(
     author_email='marco.forgione1986@gmail.com',
     description='MPC package for python',
     packages=find_packages(),
-    install_requires=['numpy >= 1.11.1', 'scipy', 'matplotlib >= 1.5.1', 'osqp'], # to be checked
+    install_requires=['numpy', 'scipy', 'matplotlib', 'osqp'], # to be checked
 )

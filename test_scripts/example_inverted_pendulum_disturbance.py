@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
         idx_MPC += 1
 
-    time_sim = time.time() - time_start
+    time_sim = time.perf_counter() - time_start
 
     fig,axes = plt.subplots(3,1, figsize=(10,10))
     axes[0].plot(t_vec_fast, x_vec_fast[:, 0], "k", label='p')
