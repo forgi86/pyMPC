@@ -23,6 +23,7 @@ def __is_matrix__(mat):
     else:
         return False
 
+
 class MPCController:
     """ This class implements an MPC controller
 
@@ -173,7 +174,7 @@ class MPCController:
         # constraints handling
         if xmin is not None:
             if __is_vector__(xmin) and xmin.size == self.nx:
-                self.xmin = xmin.ravel() # assert...
+                self.xmin = xmin.ravel()
             else:
                 raise ValueError("xmin should be a vector of shape (nx,)!")
         else:
@@ -181,7 +182,7 @@ class MPCController:
 
         if xmax is not None:
             if __is_vector__(xmax) and xmax.size == self.nx:
-                self.xmax = xmax # assert...
+                self.xmax = xmax
             else:
                 raise ValueError("xmax should be a vector of shape (nx,)!")
         else:
@@ -189,7 +190,7 @@ class MPCController:
 
         if umin is not None:
             if __is_vector__(umin) and umin.size == self.nu:
-                self.umin = umin # assert...
+                self.umin = umin
             else:
                 raise ValueError("umin should be a vector of shape (nu,)!")
         else:
@@ -197,7 +198,7 @@ class MPCController:
 
         if umax is not None:
             if __is_vector__(umax) and umax.size == self.nu:
-                self.umax = umax # assert...
+                self.umax = umax
             else:
                 raise ValueError("umax should be a vector of shape (nu,)!")
         else:
@@ -205,7 +206,7 @@ class MPCController:
 
         if Dumin is not None:
             if __is_vector__(Dumin) and Dumin.size == self.nu:
-                self.Dumin = Dumin # assert...
+                self.Dumin = Dumin
             else:
                 raise ValueError("Dumin should be a vector of shape (nu,)!")
         else:
@@ -213,7 +214,7 @@ class MPCController:
 
         if Dumax is not None:
             if __is_vector__(Dumax) and Dumax.size == self.nu:
-                self.Dumax = Dumax # assert...
+                self.Dumax = Dumax
             else:
                 raise ValueError("Dumax should be a vector of shape (nu,)!")
         else:
@@ -224,17 +225,20 @@ class MPCController:
 
         self.eps_rel = eps_rel
         self.eps_abs = eps_abs
+        self.u_failure = self.uref  # value provided when the MPC solver fails.
 
-        self.u_failure = self.uref # value provided when the MPC solver fails.
+        # Hidden settings (for debug purpose)
+        self.raise_error = False  # Raise an error when MPC optimization fails
+        self.JX_ON = True  # Cost function terms in X active
+        self.JU_ON = True  # Cost function terms in U active
+        self.JDU_ON = True  # Cost function terms in Delta U active
+        self.SOFT_ON = True  # Soft constraints active
+        self.COMPUTE_J_CNST = False  # Compute the constant term of the MPC QP problem
 
-        self.raise_error = False # Raise an error when MPC optimization fails
-        self.JX_ON = True # Cost function terms in X active
-        self.JU_ON = True # Cost function terms in U active
-        self.JDU_ON = True # Cost function terms in Delta U active
-        self.SOFT_ON = True # Soft constraints active
-
+        # QP problem instance
         self.prob = osqp.OSQP()
 
+        # Variables initialized by the setup() method
         self.res = None
         self.P = None
         self.q = None
@@ -269,12 +273,22 @@ class MPCController:
         Parameters
         ----------
         return_x_seq : bool
-                       If true, the method also returns the optimal sequence of states
+                       If True, the method also returns the optimal sequence of states in the info dictionary
+        return_u_seq : bool
+                       If True, the method also returns the optimal sequence of inputs in the info dictionary
+        return_eps_seq : bool
+                       If True, the method also returns the optimal sequence of epsilon in the info dictionary
+        return_status : bool
+                       If True, the method also returns the optimizer status in the info dictionary
+        return_obj_val : bool
+                       If True, the method also returns the objective function value in the info dictionary
 
         Returns
         -------
         array_like (nu,)
             The first element of the optimal input sequence uMPC to be applied to the system.
+        dict
+            A dictionary with additional infos. It is returned only if one of the input flags return_* is set to True
         """
         Nc = self.Nc
         Np = self.Np
@@ -367,7 +381,6 @@ class MPCController:
 
         return uMPC
 
-
     def _update_QP_matrices_(self):
         x0_rh = self.x0_rh
         uminus1_rh = self.uminus1_rh
@@ -396,16 +409,19 @@ class MPCController:
         q_X = np.zeros((Np + 1) * nx)  # x_N
         self.J_CNST = 0.0
         if self.JX_ON:
-#            self.J_CNST += 1/2*Np*(xref.dot(QxN.dot(xref))) + 1/2*xref.dot(QxN.dot(xref)) # TODO adjust for non-constant xref
-
             if xref.ndim == 2 and xref.shape[0] >= Np + 1: # xref is a vector per time-instant! experimental feature
                 #for idx_ref in range(Np):
                 #    q_X[idx_ref * nx:(idx_ref + 1) * nx] += -Qx.dot(xref[idx_ref, :])
                 #q_X[Np * nx:(Np + 1) * nx] += -QxN.dot(xref[Np, :])
                 q_X += (-xref.reshape(1, -1) @ (P_X)).ravel() # way faster implementation of the same formula commented above
+
+                if self.COMPUTE_J_CNST:
+                    self.J_CNST += -1/2 *q_X @ xref.ravel()
             else:
                 q_X += np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),       # x0... x_N-1
                                -QxN.dot(xref)])                             # x_N
+                if self.COMPUTE_J_CNST:
+                    self.J_CNST += 1/2*Np*(xref.dot(QxN.dot(xref))) + 1/2*xref.dot(QxN.dot(xref))
         else:
             pass
 
@@ -473,11 +489,13 @@ class MPCController:
                 #    q_X[idx_ref * nx:(idx_ref + 1) * nx] += -Qx.dot(xref[idx_ref, :])
                 #q_X[Np * nx:(Np + 1) * nx] += -QxN.dot(xref[Np, :])
                 q_X += (-xref.reshape(1, -1) @ (P_X)).ravel()
+                if self.COMPUTE_J_CNST:
+                    self.J_CNST += -1/2 * q_X @ xref.ravel()
             else:
                 q_X += np.hstack([np.kron(np.ones(Np), -Qx.dot(xref)),       # x0... x_N-1
                                -QxN.dot(xref)])                             # x_N
-
-#            self.J_CNST += 1/2*Np*(xref.dot(QxN.dot(xref))) + 1/2*xref.dot(QxN.dot(xref)) # TODO adapt for non-constant xref
+                if self.COMPUTE_J_CNST:
+                    self.J_CNST += 1/2*Np*(xref.dot(QxN.dot(xref))) + 1/2*xref.dot(QxN.dot(xref))
         else:
             pass
 
@@ -588,12 +606,12 @@ class MPCController:
         self.P_X = P_X
         # Debug assignments
 
-#        self.P_x = P_X
 #        self.P_U = P_U
 #        self.P_eps = P_eps
-        #self.Aineq_du = Aineq_du
-        #self.leq_dyn = leq_dyn
-        #self.lineq_du = lineq_du
+#        self.Aineq_du = Aineq_du
+#        self.leq_dyn = leq_dyn
+#        self.lineq_du = lineq_du
+
 
 if __name__ == '__main__':
     import time
@@ -603,15 +621,7 @@ if __name__ == '__main__':
     M = 2    # mass (Kg)
     b = 0.3  # friction coefficient (N*s/m)
 
-    Ad = sparse.csc_matrix([
-        [1.0, Ts],
-        [0,  1.0 -b/M*Ts]
-    ])
-    Bd = sparse.csc_matrix([
-      [0.0],
-      [Ts/M]])
-
-    # Continous-time matrices (just for reference)
+    # Continuous-time system matrices
     Ac = np.array([
         [0.0, 1.0],
         [0, -b/M]]
@@ -620,6 +630,12 @@ if __name__ == '__main__':
         [0.0],
         [1/M]
     ])
+
+    [nx, nu] = Bc.shape # number of states and number or inputs
+
+    # Forward euler discretization
+    Ad = np.eye(nx) + Ac*Ts
+    Bd = Bc*Ts
 
     # Reference input and states
     pref = 7.0
@@ -677,9 +693,7 @@ if __name__ == '__main__':
 
     time_sim = time.time() - time_start
 
-    #K.__controller_function__(np.array([0,0]), np.array([0]))
-
-    fig,axes = plt.subplots(3,1, figsize=(10,10))
+    fig, axes = plt.subplots(3,1, figsize=(10,10))
     axes[0].plot(tsim, xsim[:,0], "k", label='p')
     axes[0].plot(tsim, xref[0]*np.ones(np.shape(tsim)), "r--", label="pref")
     axes[0].set_title("Position (m)")
