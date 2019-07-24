@@ -4,7 +4,7 @@ import time
 import matplotlib.pyplot as plt
 from scipy.integrate import ode
 from scipy.interpolate import interp1d
-from pyMPC.kalman import kalman_filter_simple, LinearStateEstimator
+from pyMPC.kalman import kalman_design_simple, LinearStateEstimator
 from pyMPC.mpc import MPCController
 import control
 import control.matlab
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     Q_kal =  np.diag([0.1, 10, 0.1, 10])
     #Q_kal =  np.diag([100, 100, 100, 100])
     R_kal = 1*np.eye(ny)
-    L, P, W = kalman_filter_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal)
+    L, P, W = kalman_design_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal)
     #Bd_kal = np.hstack([Bd, Bd])
     #Dd_kal = np.array([[0, 0]])
     #Q_kal = np.array([[1e4]]) # nw x nw matrix, w general (here, nw = nu)

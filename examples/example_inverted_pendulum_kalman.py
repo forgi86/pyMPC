@@ -4,7 +4,7 @@ import time
 import matplotlib.pyplot as plt
 from pyMPC.mpc import MPCController
 from scipy.integrate import ode
-from kalman import kalman_filter_simple, LinearStateEstimator
+from pyMPC.kalman import kalman_design_simple, LinearStateEstimator
 
 if __name__ == '__main__':
 
@@ -96,9 +96,9 @@ if __name__ == '__main__':
     # Basic Kalman filter design
     Q_kal = 10 * np.eye(nx)
     R_kal = np.eye(ny)
-    L, P, W = kalman_filter_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal)
+    L, P, W = kalman_design_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal, type='filter')
     x0_est = x0
-    KF = LinearStateEstimator(x0_est, Ad, Bd, Cd, Dd,L)
+    KF = LinearStateEstimator(x0_est, Ad, Bd, Cd, Dd, L)
 
     # Prediction horizon
     Np = 200
@@ -166,8 +166,8 @@ if __name__ == '__main__':
         #system_dyn.set_initial_value(x_step, 0)
 
         # Kalman filter: update and predict
-        KF.update(ymeas_step) # \hat x[i|i]
-        KF.predict(uMPC)    # \hat x[i+1|i]
+        KF.update(ymeas_step) # update  \hat x[i|i-1] to \hat x[i|i] updated using ymeas[i]
+        KF.predict(uMPC)      # predict \hat x[i+1|i] using u[i]
 
         # MPC update for step i+1
         time_MPC_start = time.time()

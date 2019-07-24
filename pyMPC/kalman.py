@@ -20,7 +20,7 @@ def __second_dim__(X):
         m = sp.size(X,1)
     return  m
 
-def kalman_filter(A, B, C, D, Qn, Rn, Nn=None):
+def kalman_design(A, B, C, D, Qn, Rn, Nn=None):
     """ Design a Kalman filter for the discrete-time system
      x_{k+1} = Ax_{k} + Bu_{k} + Gw_{k}
      y_{k} = Cx_{k} + Du_{k} + Hw_{k} + v_{k}
@@ -29,8 +29,12 @@ def kalman_filter(A, B, C, D, Qn, Rn, Nn=None):
      E[vv'] = Qn, E[ww'] = Rn, E['wv'] = Nn
 
     The Kalman filter has structure
-     \hat x_{k+1} = Ax_{k} + Bu_{k} + L(y_{k} - C\hat x{k} - Du_{k})
-     \hat y_{k}   = Cx_k + Du_k
+     \hat x_{k+1|k+1} = A\hat x_{k|k} + Bu_{k} + L[y_{k+1} - C(A \hat x{k|k} + Bu_{k})]
+     \hat y_{k|k}   = Cx_{k|k}
+
+    The Kalman predictor has structure
+     \hat x_{k+1|k} = Ax_{k|k-1} + Bu_{k} + L[y_{k} - C\hat x{k|k-1}]
+     \hat y_{k|k-1}   = Cx_{k|k-1}
     """
     nx = np.shape(A)[0]
     nw = np.shape(Qn)[0] # number of uncontrolled inputs
@@ -60,43 +64,40 @@ def kalman_filter(A, B, C, D, Qn, Rn, Nn=None):
     L = np.transpose(K) # Kalman gain
     return L,P,W
 
-def kalman_filter_simple(A, B, C, D, Qn, Rn):
-    r"""Design a Kalman filter for the discrete-time system
-
-    .. math::
-        \begin{split}
-         x_{k+1} &= Ax_{k} + Bu_{k} + Iw_{k}\\
-         y_{k}  &= Cx_{k} + Du_{k} + I v_{k}
-        \end{split}
-
-    with known inputs u and stochastic disturbances w and v.
-    In particular, w and v are zero mean, white Gaussian noise sources with
-    E[vv'] = Qn, E[ww'] = Rn, E['wv'] = 0
+def kalman_design_simple(A, B, C, D, Qn, Rn, type='filter'):
+    """ Design a Kalman predictor or a Kalman filter for the discrete-time system
+     x_{k+1} = Ax_{k} + Bu_{k} + Iw_{k}
+     y_{k} = Cx_{k} + Du_{k} + I v_{k}
+     with known inputs u and stochastic disturbances v, w.
+     In particular, v and w are zero mean, white Gaussian noise sources with
+     E[vv'] = Qn, E[ww'] = Rn, E['wv'] = 0
 
     The Kalman filter has structure
+     \hat x_{k+1|k+1} = A\hat x_{k|k} + Bu_{k} + L[y_{k+1} - C(A \hat x{k|k} + Bu_{k})]
+     \hat y_{k|k}   = Cx_{k|k}
 
-    .. math::
-        \begin{split}
-        \hat x_{k+1} &= Ax_{k} + Bu_{k} + L(y_{k} - C\hat x{k} - Du_{k})\\
-        \hat y_{k}   &= Cx_k + Du_k
-        \end{split}
+    The Kalman predictor has structure
+     \hat x_{k+1|k} = Ax_{k|k-1} + Bu_{k} + L[y_{k} - C\hat x{k|k-1}]
+     \hat y_{k|k-1}   = Cx_{k|k-1}
     """
 
-    nx = __first_dim__(A)
-    nw = nx  # number of uncontrolled inputs
-    nu = __second_dim__(B) # number of controlled inputs
-    ny = __first_dim__(C)
-
     P,W,K, = control.dare(np.transpose(A), np.transpose(C), Qn, Rn)
-    L = np.transpose(K) # Kalman gain
-    return L,P,W
+#    L = np.transpose(K) # Kalman gain
 
+    if type == 'filter':
+        L = P@np.transpose(C) @ sp.linalg.basic.inv(C@P@np.transpose(C)+Rn)
+    elif type == 'predictor':
+        L = A@P@np.transpose(C) @ sp.linalg.basic.inv(C@P@np.transpose(C)+Rn)
+    else:
+        raise ValueError("Unknown kalman design type: Specify either filter or predictor!")
+
+    return L,P,W
 
 class LinearStateEstimator:
     def __init__(self, x0, A, B, C, D, L):
 
         self.x = np.copy(x0)
-        self.y = C @ self.x0
+        self.y = C @ self.x
         self.A = A
         self.B = B
         self.C = C
@@ -111,12 +112,12 @@ class LinearStateEstimator:
         return self.y
 
     def predict(self, u):
-        self.x = self.A @ self.x + self.B @u  # x[k+1|k]
-        self.y = self.C @ self.x + self.D @u
+        self.x = self.A @ self.x + self.B @u  # x[k|k] -> x[k+1|k]
+        self.y = self.C @ self.x   # y[k|k] -> y[k+1|k]
         return self.x
 
     def update(self, y_meas):
-        self.x = self.x + self.L @ (y_meas - self.y)  # x[k+1|k+1]
+        self.x = self.x + self.L @ (y_meas - self.y)  # x[k+1|k] -> x[k+1|k+1]
         return self.x
 
     def sim(self, u_seq, x=None):
@@ -164,18 +165,18 @@ if __name__ == '__main__':
     Dd_kal = np.array([[0, 0]])
     Q_kal = np.array([[100]]) # nw x nw matrix, w general (here, nw = nu)
     R_kal = np.eye(ny) # ny x ny)
-    L_general,P_general,W_general = kalman_filter(Ad, Bd_kal, Cd, Dd_kal, Q_kal, R_kal)
+    L_general,P_general,W_general = kalman_design(Ad, Bd_kal, Cd, Dd_kal, Q_kal, R_kal)
 
     # Simple design
     Q_kal = 10 * np.eye(nx)
     R_kal = np.eye(ny)
-    L_simple,P_simple,W_simple  = kalman_filter_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal)
+    L_simple,P_simple,W_simple  = kalman_design_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal)
 
     # Simple design written in general form
     Bd_kal = np.hstack([Bd, np.eye(nx)])
     Dd_kal = np.hstack([Dd, np.zeros((ny, nx))])
     Q_kal = 10 * np.eye(nx)#np.eye(nx) * 100
     R_kal = np.eye(ny) * 1
-    L_gensim,P_gensim,W_gensim  = kalman_filter_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal)
+    L_gensim,P_gensim,W_gensim  = kalman_design_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal)
 
     assert(np.isclose(L_gensim[0], L_simple[0]))
