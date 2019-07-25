@@ -25,7 +25,7 @@ def __is_matrix__(mat):
 
 
 class MPCController:
-    """ This class implements an MPC controller
+    """ This class implements a linear constrained MPC controller
 
     Attributes
     ----------

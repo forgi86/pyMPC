@@ -24,9 +24,9 @@ def kalman_design(A, B, C, D, Qn, Rn, Nn=None):
     """ Design a Kalman filter for the discrete-time system
      x_{k+1} = Ax_{k} + Bu_{k} + Gw_{k}
      y_{k} = Cx_{k} + Du_{k} + Hw_{k} + v_{k}
-     with known inputs u and sctochastic disturbances v, w.
+     with known inputs u and stochastic disturbances v, w.
      In particular, v and w are zero mean, white Gaussian noise sources with
-     E[vv'] = Qn, E[ww'] = Rn, E['wv'] = Nn
+     E[vv'] = Qn, E[ww'] = Rn, E[wv'] = Nn
 
     The Kalman filter has structure
      \hat x_{k+1|k+1} = A\hat x_{k|k} + Bu_{k} + L[y_{k+1} - C(A \hat x{k|k} + Bu_{k})]
@@ -66,19 +66,24 @@ def kalman_design(A, B, C, D, Qn, Rn, Nn=None):
 
 def kalman_design_simple(A, B, C, D, Qn, Rn, type='filter'):
     """ Design a Kalman predictor or a Kalman filter for the discrete-time system
+
      x_{k+1} = Ax_{k} + Bu_{k} + Iw_{k}
      y_{k} = Cx_{k} + Du_{k} + I v_{k}
+
      with known inputs u and stochastic disturbances v, w.
      In particular, v and w are zero mean, white Gaussian noise sources with
-     E[vv'] = Qn, E[ww'] = Rn, E['wv'] = 0
+     E[vv'] = Qn, E[ww'] = Rn, E[wv'] = 0
 
     The Kalman filter has structure
+
      \hat x_{k+1|k+1} = A\hat x_{k|k} + Bu_{k} + L[y_{k+1} - C(A \hat x{k|k} + Bu_{k})]
      \hat y_{k|k}   = Cx_{k|k}
 
     The Kalman predictor has structure
+
      \hat x_{k+1|k} = Ax_{k|k-1} + Bu_{k} + L[y_{k} - C\hat x{k|k-1}]
      \hat y_{k|k-1}   = Cx_{k|k-1}
+
     """
 
     P,W,K, = control.dare(np.transpose(A), np.transpose(C), Qn, Rn)
@@ -89,7 +94,7 @@ def kalman_design_simple(A, B, C, D, Qn, Rn, type='filter'):
     elif type == 'predictor':
         L = A@P@np.transpose(C) @ sp.linalg.basic.inv(C@P@np.transpose(C)+Rn)
     else:
-        raise ValueError("Unknown kalman design type: Specify either filter or predictor!")
+        raise ValueError("Unknown Kalman design type. Specify either filter or predictor!")
 
     return L,P,W
 

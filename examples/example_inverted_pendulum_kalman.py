@@ -196,5 +196,7 @@ if __name__ == '__main__':
         ax.legend()
 
 
-#    fig,axes = plt.subplots(1,1, figsize=(10,10))
-#    axes.hist(t_MPC_CPU*1000)
+    fig,ax = plt.subplots(1,1, figsize=(5,5))
+    ax.hist(t_MPC_CPU*1000, bins=100)
+    ax.grid(True)
+    ax.set_xlabel('MPC computation CPU time (ms)')
