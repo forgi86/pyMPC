@@ -20,6 +20,7 @@ def __second_dim__(X):
         m = sp.size(X,1)
     return  m
 
+
 def kalman_design(A, B, C, D, Qn, Rn, Nn=None):
     """ Design a Kalman filter for the discrete-time system
      x_{k+1} = Ax_{k} + Bu_{k} + Gw_{k}
@@ -32,9 +33,13 @@ def kalman_design(A, B, C, D, Qn, Rn, Nn=None):
      \hat x_{k+1|k+1} = A\hat x_{k|k} + Bu_{k} + L[y_{k+1} - C(A \hat x{k|k} + Bu_{k})]
      \hat y_{k|k}   = Cx_{k|k}
 
+    where L is the Kalman filter gain
+
     The Kalman predictor has structure
      \hat x_{k+1|k} = Ax_{k|k-1} + Bu_{k} + L[y_{k} - C\hat x{k|k-1}]
      \hat y_{k|k-1}   = Cx_{k|k-1}
+
+    where L is the Kalman predictor gain
     """
     nx = np.shape(A)[0]
     nw = np.shape(Qn)[0] # number of uncontrolled inputs
@@ -64,6 +69,7 @@ def kalman_design(A, B, C, D, Qn, Rn, Nn=None):
     L = np.transpose(K) # Kalman gain
     return L,P,W
 
+
 def kalman_design_simple(A, B, C, D, Qn, Rn, type='filter'):
     """ Design a Kalman predictor or a Kalman filter for the discrete-time system
 
@@ -75,15 +81,16 @@ def kalman_design_simple(A, B, C, D, Qn, Rn, type='filter'):
      E[vv'] = Qn, E[ww'] = Rn, E[wv'] = 0
 
     The Kalman filter has structure
-
      \hat x_{k+1|k+1} = A\hat x_{k|k} + Bu_{k} + L[y_{k+1} - C(A \hat x{k|k} + Bu_{k})]
      \hat y_{k|k}   = Cx_{k|k}
 
-    The Kalman predictor has structure
+    where L is the Kalman filter gain
 
+    The Kalman predictor has structure
      \hat x_{k+1|k} = Ax_{k|k-1} + Bu_{k} + L[y_{k} - C\hat x{k|k-1}]
      \hat y_{k|k-1}   = Cx_{k|k-1}
 
+    where L is the Kalman predictor gain
     """
 
     P,W,K, = control.dare(np.transpose(A), np.transpose(C), Qn, Rn)
