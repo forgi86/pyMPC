@@ -22,7 +22,7 @@ def __second_dim__(X):
 
 
 def kalman_design(A, B, C, D, Qn, Rn, Nn=None):
-    """ Design a Kalman filter for the discrete-time system
+    """ General design a Kalman filter for the discrete-time system
      x_{k+1} = Ax_{k} + Bu_{k} + Gw_{k}
      y_{k} = Cx_{k} + Du_{k} + Hw_{k} + v_{k}
      with known inputs u and stochastic disturbances v, w.
@@ -71,7 +71,7 @@ def kalman_design(A, B, C, D, Qn, Rn, Nn=None):
 
 
 def kalman_design_simple(A, B, C, D, Qn, Rn, type='filter'):
-    """ Design a Kalman predictor or a Kalman filter for the discrete-time system
+    """ Simplified design a Kalman predictor or a Kalman filter for the discrete-time system
 
      x_{k+1} = Ax_{k} + Bu_{k} + Iw_{k}
      y_{k} = Cx_{k} + Du_{k} + I v_{k}
@@ -104,6 +104,7 @@ def kalman_design_simple(A, B, C, D, Qn, Rn, type='filter'):
         raise ValueError("Unknown Kalman design type. Specify either filter or predictor!")
 
     return L,P,W
+
 
 class LinearStateEstimator:
     def __init__(self, x0, A, B, C, D, L):
@@ -149,6 +150,7 @@ class LinearStateEstimator:
 
         #y[Np] = self.C @ x_tmp + self.D @ u_tmp # not really true for D. Here it is 0 anyways
         return y
+
 
 if __name__ == '__main__':
 

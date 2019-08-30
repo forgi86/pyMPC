@@ -107,7 +107,7 @@ class MPCController:
             if __is_vector__(x0) and x0.size == self.nx:
                 self.x0 = x0.ravel()
             else:
-                raise ValueError("nx should be an array of dimension (nx,)!")
+                raise ValueError("x0 should be an array of dimension (nx,)!")
         else:
             self.x0 = np.zeros(self.nx)
 
