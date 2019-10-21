@@ -1,6 +1,6 @@
 ## pyMPC on Raspberry PI
 
-pyMPC can run on Raspberry PI (we tested it on model 3B). The procedure may also work on other versions of the board.
+pyMPC can run on Raspberry PI (we tested model 3B). This procedure may also work on other versions and maybe other ARM machines, but we haven't tested yet.
 
 ## Installation procedure
 
