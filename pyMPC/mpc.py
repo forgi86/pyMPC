@@ -39,9 +39,9 @@ class MPCController:
         Control horizon. It must be lower or equal to Np. If None, it is set equal to Np.
     x0 : 1D array_like. Size: (nx,)
          System state at time instant 0. If None, it is set to np.zeros(nx)
-    xref : 1D array-like. Size: (nx,)
-           System state reference (aka target, set-point).
-    uref : 1D array-like. Size: (nu, ).
+    xref : 1D array-like. Size: (nx,) or (Np, nx)
+           System state reference (aka target, set-point). If size is (Np, nx), reference is time-dependent.
+    uref : 1D array-like. Size: (nu, )
            System input reference. If None, it is set to np.zeros(nx)
     uminus1 : 1D array_like
              Input value assumed at time instant -1. If None, it is set to uref.
@@ -74,23 +74,23 @@ class MPCController:
     def __init__(self, Ad, Bd, Np=20, Nc=None,
                  x0=None, xref=None, uref=None, uminus1=None,
                  Qx=None, QxN=None, Qu=None, QDu=None,
-                 xmin=None, xmax=None, umin=None,umax=None,Dumin=None,Dumax=None,
+                 xmin=None, xmax=None, umin=None, umax=None, Dumin=None, Dumax=None,
                  eps_feas=1e6, eps_rel=1e-3, eps_abs=1e-3):
 
         if __is_matrix__(Ad) and (Ad.shape[0] == Ad.shape[1]):
             self.Ad = Ad
-            self.nx = Ad.shape[0] # number of states
+            self.nx = Ad.shape[0]  # number of states
         else:
             raise ValueError("Ad should be a square matrix of dimension (nx,nx)!")
 
         if __is_matrix__(Bd) and Bd.shape[0] == self.nx:
             self.Bd = Bd
-            self.nu = Bd.shape[1] # number of inputs
+            self.nu = Bd.shape[1]  # number of inputs
         else:
             raise ValueError("Bd should be a matrix of dimension (nx, nu)!")
 
         if Np > 1:
-            self.Np = Np # assert
+            self.Np = Np  # assert
         else:
             raise ValueError("Np should be > 1!")
 
@@ -124,7 +124,7 @@ class MPCController:
 
         if uref is not None:
             if __is_vector__(uref) and uref.size == self.nu:
-                self.uref = uref.ravel() # assert...
+                self.uref = uref.ravel()  # assert...
             else:
                 raise ValueError("uref should be a vector of shape (nu,)!")
         else:
@@ -143,7 +143,7 @@ class MPCController:
             if __is_matrix__(Qx) and Qx.shape[0] == self.nx and Qx.shape[1] == self.nx:
                 self.Qx = Qx
             else:
-                raise ValueError("Qx should be a matrix of shape (nx,nx)!")
+                raise ValueError("Qx should be a matrix of shape (nx, nx)!")
         else:
             self.Qx = np.zeros((self.nx, self.nx)) # sparse
 
@@ -151,7 +151,7 @@ class MPCController:
             if __is_matrix__(QxN) and QxN.shape[0] == self.nx and Qx.shape[1] == self.nx:
                 self.QxN = QxN
             else:
-                raise ValueError("QxN should be a square matrix of shape (nx,nx)!")
+                raise ValueError("QxN should be a square matrix of shape (nx, nx)!")
         else:
             self.QxN = self.Qx # sparse
 
@@ -159,7 +159,7 @@ class MPCController:
             if __is_matrix__(Qu) and Qu.shape[0] == self.nu and Qu.shape[1] == self.nu:
                 self.Qu = Qu
             else:
-                raise ValueError("Qu should be a square matrix of shape (nu,nu)!")
+                raise ValueError("Qu should be a square matrix of shape (nu, nu)!")
         else:
             self.Qu = np.zeros((self.nu, self.nu))
 
@@ -333,7 +333,7 @@ class MPCController:
         else:
             return uMPC, info
 
-    def update(self,x,u=None,xref=None,solve=True):
+    def update(self, x, u=None, xref=None, solve=True):
         """ Update the QP problem.
 
         Parameters
@@ -376,7 +376,7 @@ class MPCController:
         """ This function is meant to be used for debug only.
         """
 
-        self.update(x,u,xref=xref,solve=True)
+        self.update(x, u, xref=xref, solve=True)
         uMPC = self.output()
 
         return uMPC
@@ -668,18 +668,18 @@ if __name__ == '__main__':
     Nc = 10
 
     Xref = np.kron(np.ones((Np + 1,1)), xref)
-    K = MPCController(Ad,Bd,Np=Np,Nc=Nc,x0=x0,xref=Xref,uminus1=uminus1,
-                      Qx=Qx, QxN=QxN, Qu=Qu,QDu=QDu,
-                      xmin=xmin,xmax=xmax,umin=umin,umax=umax,Dumin=Dumin,Dumax=Dumax)
+    K = MPCController(Ad, Bd, Np=Np, Nc=Nc, x0=x0, xref=Xref, uminus1=uminus1,
+                      Qx=Qx, QxN=QxN, Qu=Qu, QDu=QDu,
+                      xmin=xmin, xmax=xmax, umin=umin, umax=umax, Dumin=Dumin, Dumax=Dumax)
     K.setup()
 
     # Simulate in closed loop
     [nx, nu] = Bd.shape # number of states and number or inputs
     len_sim = 40 # simulation length (s)
     nsim = int(len_sim/Ts) # simulation length(timesteps)
-    xsim = np.zeros((nsim,nx))
-    usim = np.zeros((nsim,nu))
-    tsim = np.arange(0,nsim)*Ts
+    xsim = np.zeros((nsim, nx))
+    usim = np.zeros((nsim, nu))
+    tsim = np.arange(0, nsim)*Ts
 
     time_start = time.time()
     xstep = x0
@@ -688,8 +688,8 @@ if __name__ == '__main__':
         xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # system step
         K.update(xstep, xref=Xref) # update with measurement
         K.solve()
-        xsim[i,:] = xstep
-        usim[i,:] = uMPC
+        xsim[i, :] = xstep
+        usim[i, :] = uMPC
 
     time_sim = time.time() - time_start
 
