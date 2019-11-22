@@ -19,6 +19,7 @@
 \newcommand{\Np}{{N_p}}
 \newcommand{\Nc}{{N_c}}
 \newcommand{\blkdiag}{\text{blkdiag}}
+\newcommand{\baru}{u_{-1}}
 
 \begin{document}
 
@@ -368,5 +369,114 @@ The contributions $J_{Q_u}$ of the cost function also changes:
  \end{bmatrix}
  \end{multline}
 Instead, $J_\Delta u$ does not change (because the input is constant for $k \geq N_c$!
+
+
+\chapter{Alternative Implementation}
+
+\begin{equation}
+\begin{bmatrix}
+x_1\\
+x_2\\
+\vdots\\
+x_{\Np-1}\\
+x_{\Np}
+\end{bmatrix}=
+\overbrace{
+\begin{bmatrix}
+A_d\\
+A_d^2\\
+\vdots\\
+A_d^{\Np-1}\\
+A_d^\Np
+\end{bmatrix}
+}^{=\mathcal{A}}
+x_0 + 
+\overbrace{
+\begin{bmatrix}
+ B_d                &0              &0              &\dots      &0      &0\\
+ A_dB_d               &B_d            &0              &\dots      &0      &0\\
+ \dots              &\dots          &\dots          &\dots     &0       &0\\
+ A_d^{\Np-2}B_d       &A_d^{\Np-3}B_d   &A_d^{\Np-4}B_d   &\dots     &B_d       &0\\
+ A_d^{\Np-1}B_d       &A_d^{\Np-2}B_d   &A_d^{\Np-3}B_d   &\dots     &A_dB_d      &B_d \\
+\end{bmatrix}
+}^{=\mathcal B}
+\begin{bmatrix}
+u_0\\
+u_1\\
+u_2\\
+\vdots\\
+u_{\Np-1}
+\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+ J_{Q_x} = \frac{1}{2} \left(\mathcal{A} x_0 + \mathcal{B} U - X_{ref}\right)^\top \mathcal{Q}_x \left(\mathcal{A} x_0 + \mathcal{B} U - X_{ref}\right)
+\end{equation}
+
+\begin{equation}
+ J_{Q_u} =  \frac{1}{2} (U - U_{ref})^\top \mathcal{Q}_u (U-U_{ref})
+\end{equation}
+
+\begin{equation}
+ J_{Q_{\Delta u}} =  \frac{1}{2} U^\top \mathcal{Q}_{\Delta u} U +   
+ \begin{bmatrix}
+  -{\baru}^\top Q_{\Delta u} & 0 & \dots  & 0
+ \end{bmatrix} U
+\end{equation}
+
+Summing up and expanding terms:
+\begin{multline}
+ J = 
+ \frac{1}{2}U^\top \mathcal{B}^\top \mathcal{Q}_x \mathcal{B} U + 
+ \frac{1}{2} (\mathcal{A}x_o - X_{ref})^\top \mathcal{Q}_x (\mathcal{A}x_0-X_{ref}) +
+ (\mathcal{A}x_0 -X_{ref})^\top\mathcal{Q}_x \mathcal{B} U + \\
+ + \frac{1}{2} U^\top \mathcal{Q}_u U +
+ \frac{1}{2}U_{ref}^\top \mathcal{Q}_uU^{ref} + 
+ -U_{ref}^\top\mathcal{Q}_u U +\\ 
+ +\frac{1}{2} U^\top \mathcal{Q}_{\Delta u} U +
+\begin{bmatrix}
+  -{\baru}^\top Q_{\Delta u} & 0 & \dots  & 0
+ \end{bmatrix} U 
+\end{multline}
+Neglecting constant terms and collecting:
+\begin{multline}
+ J = C + \frac{1}{2} U^\top \overbrace{\big(\mathcal{B}^\top \mathcal{Q}_x \mathcal{B} + \mathcal{Q}_u + \mathcal{Q}_{\Delta u}\big)} ^{=\mathcal{P}}U + \\
+ \overbrace{\bigg [(\mathcal{A}x_o - X_{ref})^\top \mathcal{Q}_x \mathcal{B} -U_{ref}^\top\mathcal{Q}_u -
+ \begin{bmatrix}
+  {\baru}^\top Q_{\Delta u} & 0 & \dots  & 0
+ \end{bmatrix}\bigg)}^{=b^\top} U
+\end{multline}
+Thus, we have
+\begin{equation}
+ p = \mathcal{B}^\top \mathcal{Q}_x(\mathcal{A}x_0 - X_{ref}) - \mathcal{Q}_uU_{ref} + 
+  \begin{bmatrix}
+ -Q_{\Delta u} \baru \\ 0 \\ \vdots \\0
+ \end{bmatrix}
+\end{equation}
+expanding
+\begin{equation}
+ p = \overbrace{\mathcal{B}^\top \mathcal{Q}_x\mathcal{A}}^{=p_{x_0}}x_0  \;+\; \overbrace{-\mathcal{B}^\top \mathcal{Q}_x}^{p_{X_{ref}}}X_{ref}\;+\; \overbrace{-\mathcal{Q}_u}^{=p_{U_{ref}}}U_{ref} + 
+\overbrace{
+  \begin{bmatrix}
+ -Q_{\Delta u} \\ 0 \\ \vdots \\0
+ \end{bmatrix}
+}^{=p_{\baru}}
+\baru
+\end{equation}
+For an unconstrained problem the minimum is in 
+\begin{equation}
+ U^{opt} = -P^{-1}p
+\end{equation}
+Expanding
+\begin{equation}
+ U^{opt} = k_{x_0} x_0 + k_{X_{ref}}X_{ref} + k_{U_{ref}} U_{ref} k_{\baru} \baru
+\end{equation}
+with 
+\begin{align}
+k_{x_0} &= -P^{-1}p_{x_0}\\
+k_{X_{ref}} &= -P^{-1}p_{X_{ref}}\\
+k_{U_{ref}} &= -P^{-1}p_{U_{ref}}\\
+k_{\baru} &= -P^{-1}p_{\baru} 
+\end{align}
 \end{document} 
 

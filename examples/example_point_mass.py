@@ -12,7 +12,7 @@ if __name__ == '__main__':
     M = 2    # mass (Kg)
     b = 0.3  # friction coefficient (N*s/m)
 
-    # Continous-time matrices (just for reference)
+    # Continuous-time matrices (just for reference)
     Ac = np.array([
         [0.0, 1.0],
         [0, -b/M]]
@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     [nx, nu] = Bc.shape  # number of states and number or inputs
 
-    # Brutal forward euler discretization
+    # Simple forward euler discretization
     Ad = np.eye(nx) + Ac*Ts
     Bd = Bc*Ts
 
@@ -76,18 +76,23 @@ if __name__ == '__main__':
     nsim = int(len_sim/Ts) # simulation length(timesteps)
     xsim = np.zeros((nsim,nx))
     usim = np.zeros((nsim,nu))
+    tcalc = np.zeros((nsim,1))
     tsim = np.arange(0,nsim)*Ts
 
-    time_start = time.time()
+
 
     xstep = x0
     uMPC = uminus1
+
+    time_start = time.time()
     for i in range(nsim):
         xsim[i,:] = xstep
 
         # MPC update and step. Could be in just one function call
+        time_start = time.time()
         K.update(xstep, uMPC) # update with measurement
         uMPC = K.output() # MPC step (u_k value)
+        tcalc[i,:] = time.time() - time_start
         usim[i,:] = uMPC
 
         #xstep = Ad.dot(xstep) + Bd.dot(uMPC)  # Real system step (x_k+1 value)
@@ -95,8 +100,8 @@ if __name__ == '__main__':
         system_dyn.integrate(system_dyn.t + Ts)
         xstep = system_dyn.y
 
-    time_sim = time.time() - time_start
 
+    time_sim = time.time() - time_start
     fig,axes = plt.subplots(3,1, figsize=(10,10))
     axes[0].plot(tsim, xsim[:,0], "k", label='p')
     axes[0].plot(tsim, xref[0]*np.ones(np.shape(tsim)), "r--", label="pref")
@@ -113,3 +118,8 @@ if __name__ == '__main__':
     for ax in axes:
         ax.grid(True)
         ax.legend()
+
+    plt.figure()
+    plt.hist(tcalc*1000)
+    plt.grid(True)
+

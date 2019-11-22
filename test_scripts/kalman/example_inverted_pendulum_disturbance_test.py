@@ -4,7 +4,7 @@ import time
 import matplotlib.pyplot as plt
 from scipy.integrate import ode
 from scipy.interpolate import interp1d
-from pyMPC.kalman import kalman_filter_simple, LinearStateEstimator
+from pyMPC.kalman import kalman_design_simple, LinearStateEstimator
 from pyMPC.mpc import MPCController
 import control
 import control.matlab
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     Q_kal =  np.diag([0.1, 10, 0.1, 10])
     #Q_kal =  np.diag([100, 100, 100, 100])
     R_kal = 1*np.eye(ny)
-    L, P, W = kalman_filter_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal)
+    L, P, W = kalman_design_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal)
     #Bd_kal = np.hstack([Bd, Bd])
     #Dd_kal = np.array([[0, 0]])
     #Q_kal = np.array([[1e4]]) # nw x nw matrix, w general (here, nw = nu)
@@ -219,14 +219,14 @@ if __name__ == '__main__':
 
         # Controller simulation step at rate Ts_MPC
         if run_MPC:
-            time_calc_start = time.time()
+            time_calc_start = time.perf_counter()
             # Kalman filter: update and predict
             KF.update(ymeas_step) # \hat x[i|i]
             KF.predict(u_MPC)    # \hat x[i+1|i]
             # MPC update
             #K.update(system_dyn.y, u_MPC, xref=xref_MPC) # update with measurement
             K.update(KF.x, u_MPC, xref=xref_MPC)  # update with measurement
-            t_calc_vec[idx_MPC,:] = time.time() - time_calc_start
+            t_calc_vec[idx_MPC,:] = time.perf_counter() - time_calc_start
 
         # System simulation step at rate Ts_fast
         system_dyn.set_f_params(u_fast)

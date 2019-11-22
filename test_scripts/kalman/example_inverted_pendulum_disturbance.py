@@ -272,8 +272,8 @@ if __name__ == '__main__':
         ax.grid(True)
         ax.legend()
 
-
+    # In[CPU time]
     fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-    ax.hist(t_calc_vec*1000)
+    ax.hist(t_calc_vec*1000, bins=100)
     ax.grid(True)
     ax.set_title('CPU time (ms)')

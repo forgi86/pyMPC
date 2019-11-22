@@ -4,7 +4,7 @@ import time
 import matplotlib.pyplot as plt
 from pyMPC.mpc import MPCController
 from scipy.integrate import ode
-from kalman import kalman_filter_simple, LinearStateEstimator
+from pyMPC.kalman import kalman_design_simple, LinearStateEstimator
 
 if __name__ == '__main__':
 
@@ -55,7 +55,7 @@ if __name__ == '__main__':
                           F - b * v) * np.cos(theta)) / (l * (M + m * (1 - np.cos(theta) ** 2)))
         return der
 
-    # Brutal forward euler discretization
+    # Simple forward euler discretization
     Ad = np.eye(nx) + Ac*Ts
     Bd = Bc*Ts
     Cd = Cc
@@ -96,9 +96,9 @@ if __name__ == '__main__':
     # Basic Kalman filter design
     Q_kal = 10 * np.eye(nx)
     R_kal = np.eye(ny)
-    L, P, W = kalman_filter_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal)
+    L, P, W = kalman_design_simple(Ad, Bd, Cd, Dd, Q_kal, R_kal, type='filter')
     x0_est = x0
-    KF = LinearStateEstimator(x0_est, Ad, Bd, Cd, Dd,L)
+    KF = LinearStateEstimator(x0_est, Ad, Bd, Cd, Dd, L)
 
     # Prediction horizon
     Np = 200
@@ -142,7 +142,7 @@ if __name__ == '__main__':
         # Estimator
 
 #        time_MPC_start = time.time()
-        uMPC,infoMPC = K.output(return_x_seq=True) # u[i] = k(\hat x[i]) possibly computed at time instant -1
+        uMPC, infoMPC = K.output(return_x_seq=True) # u[i] = k(\hat x[i]) possibly computed at time instant -1
 #        t_MPC_CPU[i] = time.time() - time_MPC_start
 
         x_MPC_pred[i, :, :] = infoMPC['x_seq']   # x_MPC_pred[i,i+1,...| possibly computed at time instant -1]
@@ -166,8 +166,8 @@ if __name__ == '__main__':
         #system_dyn.set_initial_value(x_step, 0)
 
         # Kalman filter: update and predict
-        KF.update(ymeas_step) # \hat x[i|i]
-        KF.predict(uMPC)    # \hat x[i+1|i]
+        KF.update(ymeas_step) # update  \hat x[i|i-1] to \hat x[i|i] updated using ymeas[i]
+        KF.predict(uMPC)      # predict \hat x[i+1|i] using u[i]
 
         # MPC update for step i+1
         time_MPC_start = time.time()
@@ -196,5 +196,7 @@ if __name__ == '__main__':
         ax.legend()
 
 
-#    fig,axes = plt.subplots(1,1, figsize=(10,10))
-#    axes.hist(t_MPC_CPU*1000)
+    fig,ax = plt.subplots(1,1, figsize=(5,5))
+    ax.hist(t_MPC_CPU*1000, bins=100)
+    ax.grid(True)
+    ax.set_xlabel('MPC computation CPU time (ms)')
