@@ -27,6 +27,15 @@ pip install -e .
 ```
 in the pyMPC project root folder (where the file setup.py is located).
 
+## Supported platforms
+
+We successfully tested pyMPC on the following platforms:
+* Windows 10 on a PC with x86-64 CPU
+* Ubuntu 18.04 LTS on a PC with x86-64 CPU
+* Raspbian Buster on a Raspberry PI 3 rev B
+
+Detailed instructions for the Raspberry PI platform are available [here](README_PI.md).
+
 ## Usage 
 
 This code snippets illustrates the use of the MPCController class:
