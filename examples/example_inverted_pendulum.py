@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     [nx, nu] = Bc.shape # number of states and number or inputs
 
-    # Brutal forward euler discretization
+    # Simple forward euler discretization
     Ad = np.eye(nx) + Ac*Ts
     Bd = Bc*Ts
 

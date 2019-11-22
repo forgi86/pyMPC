@@ -55,7 +55,7 @@ if __name__ == '__main__':
                           F - b * v) * np.cos(theta)) / (l * (M + m * (1 - np.cos(theta) ** 2)))
         return der
 
-    # Brutal forward euler discretization
+    # Simple forward euler discretization
     Ad = np.eye(nx) + Ac*Ts
     Bd = Bc*Ts
     Cd = Cc
@@ -142,7 +142,7 @@ if __name__ == '__main__':
         # Estimator
 
 #        time_MPC_start = time.time()
-        uMPC,infoMPC = K.output(return_x_seq=True) # u[i] = k(\hat x[i]) possibly computed at time instant -1
+        uMPC, infoMPC = K.output(return_x_seq=True) # u[i] = k(\hat x[i]) possibly computed at time instant -1
 #        t_MPC_CPU[i] = time.time() - time_MPC_start
 
         x_MPC_pred[i, :, :] = infoMPC['x_seq']   # x_MPC_pred[i,i+1,...| possibly computed at time instant -1]

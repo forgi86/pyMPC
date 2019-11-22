@@ -12,7 +12,7 @@ if __name__ == '__main__':
     M = 2    # mass (Kg)
     b = 0.3  # friction coefficient (N*s/m)
 
-    # Continous-time matrices (just for reference)
+    # Continuous-time matrices (just for reference)
     Ac = np.array([
         [0.0, 1.0],
         [0, -b/M]]
@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     [nx, nu] = Bc.shape  # number of states and number or inputs
 
-    # Brutal forward euler discretization
+    # Simple forward euler discretization
     Ad = np.eye(nx) + Ac*Ts
     Bd = Bc*Ts
 
@@ -83,6 +83,8 @@ if __name__ == '__main__':
 
     xstep = x0
     uMPC = uminus1
+
+    time_start = time.time()
     for i in range(nsim):
         xsim[i,:] = xstep
 
@@ -99,6 +101,7 @@ if __name__ == '__main__':
         xstep = system_dyn.y
 
 
+    time_sim = time.time() - time_start
     fig,axes = plt.subplots(3,1, figsize=(10,10))
     axes[0].plot(tsim, xsim[:,0], "k", label='p')
     axes[0].plot(tsim, xref[0]*np.ones(np.shape(tsim)), "r--", label="pref")
