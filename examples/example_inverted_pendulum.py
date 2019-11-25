@@ -65,7 +65,7 @@ if __name__ == '__main__':
     K = MPCController(Ad,Bd,Np=Np, x0=x0,xref=xref,uminus1=uminus1,
                       Qx=Qx, QxN=QxN, Qu=Qu,QDu=QDu,
                       xmin=xmin,xmax=xmax,umin=umin,umax=umax,Dumin=Dumin,Dumax=Dumax,
-                      eps_feas = 1e3)
+                      eps_feas=1e3)
     K.setup()
 
     # Simulate in closed loop
@@ -103,16 +103,16 @@ if __name__ == '__main__':
 
     time_sim = time.time() - time_start
 
-    fig,axes = plt.subplots(3,1, figsize=(10,10))
-    axes[0].plot(tsim, xsim[:,0], "k", label='p')
+    fig,axes = plt.subplots(3, 1, figsize=(10, 10))
+    axes[0].plot(tsim, xsim[:, 0], "k", label='p')
     axes[0].plot(tsim, xref[0]*np.ones(np.shape(tsim)), "r--", label="p_ref")
     axes[0].set_title("Position (m)")
 
-    axes[1].plot(tsim, xsim[:,2]*360/2/np.pi, label="phi")
+    axes[1].plot(tsim, xsim[:, 2]*360/2/np.pi, label="phi")
     axes[1].plot(tsim, xref[2]*360/2/np.pi*np.ones(np.shape(tsim)), "r--", label="phi_ref")
     axes[1].set_title("Angle (deg)")
 
-    axes[2].plot(tsim, usim[:,0], label="u")
+    axes[2].plot(tsim, usim[:, 0], label="u")
     axes[2].plot(tsim, uref*np.ones(np.shape(tsim)), "r--", label="u_ref")
     axes[2].set_title("Force (N)")
 
