@@ -61,3 +61,22 @@ Full working examples are given in the [examples](examples) folder:
  * [Point mass with input force and friction](examples/example_point_mass.ipynb)
  * [Inverted pendulum on a cart](examples/example_inverted_pendulum.ipynb)
  * [Inverted pendulum on a cart with kalman filter](examples/example_inverted_pendulum_kalman.ipynb)
+
+## Contributing
+
+I am slowly adding new functionalities to pyMPC according to my research needs. If you also wanna contribute, feel free to write me an email: marco.forgione@idsia.ch
+
+## Citing
+
+If you find this project useful, we encourage you to
+
+* Star this repository :star: 
+* Cite the [paper](https://arxiv.org/pdf/1911.13021) 
+```
+@misc{efficient2019,
+Author = {Forgione, Marco and Piga, Dario and Bemporad, Alberto},
+Title = {Efficient Calibration of Embedded MPC},
+Year = {2019},
+Eprint = {arXiv:1911.13021},
+}
+```
