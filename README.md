@@ -73,10 +73,10 @@ If you find this project useful, we encourage you to
 * Star this repository :star: 
 * Cite the [paper](https://arxiv.org/pdf/1911.13021) 
 ```
-@misc{efficient2019,
-Author = {Forgione, Marco and Piga, Dario and Bemporad, Alberto},
-Title = {Efficient Calibration of Embedded MPC},
-Year = {2019},
-Eprint = {arXiv:1911.13021},
+@inproceedings{forgione2020efficient,
+  title={Efficient Calibration of Embedded {MPC}},
+  author={Forgione, Marco and Piga, Dario and Bemporad, Alberto},
+  booktitle={Proc. of the 21st IFAC World Congress 2020, Berlin, Germany, July 12-17 2020},
+  year={2020}
 }
 ```
