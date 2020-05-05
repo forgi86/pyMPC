@@ -1,0 +1,4 @@
+<a href="https://www.codecogs.com/eqnedit.php?latex=\Delta&space;u_k&space;=&space;u_k&space;-&space;u_{k-1}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\Delta&space;u_k&space;=&space;u_k&space;-&space;u_{k-1}" title="\Delta u_k = u_k - u_{k-1}" /></a>.
+
+
+\Delta u_k = u_k - u_{k-1}
