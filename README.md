@@ -2,10 +2,10 @@
 
 Linear Constrained Model Predictive Control (MPC) in Python:
 
-![first_formula](http://www.marcoforgione.it/pyMPC/img/pyMPC_formula_1.png)
+<img src="http://www.marcoforgione.it/pyMPC/img/pyMPC_formula_1.png"></img>
 
 where 
-![second_formula](http://www.marcoforgione.it/pyMPC/img/pyMPC_formula_2.png)
+<img src="http://www.marcoforgione.it/pyMPC/img/pyMPC_formula_2.png" height="14"></img>
 ## Requirements
 
 pyMPC requires the following packages:
