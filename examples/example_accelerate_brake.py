@@ -22,7 +22,7 @@ if __name__ == '__main__':
         [1/M]
     ])
 
-    Bc = np.c_[Bc, Bc]
+    Bc = np.c_[Bc, Bc]  # Acceleration and Brake input
 
     def f_ODE(t,x,u):
         der = Ac @ x + Bc @ u
@@ -43,20 +43,20 @@ if __name__ == '__main__':
     uminus1 = np.array([0.0, 0.0])     # input at time step negative one - used to penalize the first delta u at time instant 0. Could be the same as uref.
 
     # Constraints
-    xmin = np.array([-100.0, -100.0])
-    xmax = np.array([100.0,   100.0])
+    xmin = np.array([-100.0, -0.8])
+    xmax = np.array([100.0,   0.8])
 
-    umin = np.array([-1.2, -1.2])
-    umax = np.array([1.2, 1.2])
+    umin = np.array([0,   -1.0]) # Accelerator is positive, brake is negative
+    umax = np.array([0.5,    0])
 
-    Dumin = np.array([-2e-1, -2e-1])
-    Dumax = np.array([2e-1, 2e-1])
+    Dumin = np.array([-np.inf,  -np.inf])
+    Dumax = np.array([np.inf,    np.inf])
 
     # Objective function
-    Qx = sparse.diags([0.5, 0.1])   # Quadratic cost for states x0, x1, ..., x_N-1
-    QxN = sparse.diags([0.5, 0.1])  # Quadratic cost for xN
-    Qu = 2.0 * sparse.eye(2)        # Quadratic cost for u0, u1, ...., u_N-1
-    QDu = 10.0 * sparse.eye(2)       # Quadratic cost for Du0, Du1, ...., Du_N-1
+    Qx = sparse.diags([10.0, 0.0])   # Quadratic cost for states x0, x1, ..., x_N-1
+    QxN = sparse.diags([10.0, 0.0])  # Quadratic cost for xN
+    Qu = sparse.diags([0.5, 0.2])       # Quadratic cost for u0, u1, ...., u_N-1
+    QDu = sparse.diags([0.5, 0.2])       # Quadratic cost for Du0, Du1, ...., Du_N-1
 
     # Initial state
     x0 = np.array([0.1, 0.2]) # initial state
