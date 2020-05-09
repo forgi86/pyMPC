@@ -564,17 +564,17 @@ class MPCController:
 
 
         # - bounds on \Delta u
-        Aineq_du = sparse.vstack([sparse.hstack([np.zeros((Np + 1) * nx), np.ones(nu), np.zeros((Nc - 1) * nu)]),  # for u0 - u-1
+        Aineq_du = sparse.vstack([sparse.hstack([np.zeros((nu, (Np + 1) * nx)), sparse.eye(nu), np.zeros((nu, (Nc - 1) * nu))]),  # for u0 - u-1
                                   sparse.hstack([np.zeros((Nc * nu, (Np+1) * nx)), -sparse.eye(Nc * nu) + sparse.eye(Nc * nu, k=1)])  # for uk - uk-1, k=1...Np
                                   ]
                                  )
         if self.SOFT_ON:
             Aineq_du = sparse.hstack([Aineq_du, sparse.csc_matrix((Aineq_du.shape[0], n_eps))])
 
-        uineq_du = np.ones((Nc+1) * nu)*Dumax
+        uineq_du = np.kron(np.ones(Nc+1), Dumax) #np.ones((Nc+1) * nu)*Dumax
         uineq_du[0:nu] += self.uminus1[0:nu]
 
-        lineq_du = np.ones((Nc+1) * nu)*Dumin
+        lineq_du = np.kron(np.ones(Nc+1), Dumin) #np.ones((Nc+1) * nu)*Dumin
         lineq_du[0:nu] += self.uminus1[0:nu] # works for nonscalar u?
 
         # Positivity of slack variables (not necessary!)
@@ -596,7 +596,7 @@ class MPCController:
             self.P = sparse.block_diag([P_X, P_U, P_eps], format='csc')
             self.q = np.hstack([q_X, q_U, q_eps])
         else:
-            self.P = sparse.block_diag([P_X, P_U],format='csc')
+            self.P = sparse.block_diag([P_X, P_U], format='csc')
             self.q = np.hstack([q_X, q_U])
 
         self.A = A
