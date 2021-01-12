@@ -10,16 +10,16 @@ if __name__ == '__main__':
     warnings.filterwarnings('error')
 
     # Constants #
-    M = 0.5
-    m = 0.2
-    b = 0.1
-    ftheta = 0.1
-    l = 0.3
-    g = 9.81
+    M = 0.5  # big mass
+    m = 0.2  # small mass
+    b = 0.1  # friction big mass
+    ftheta = 0.1  # friction joint
+    l = 0.3  # rod length
+    g = 9.81  # gravity
 
     Ts = 50e-3
 
-    Ac =np.array([[0,       1,          0,                  0],
+    Ac = np.array([[0,       1,          0,                  0],
                   [0,       -b/M,       -(g*m)/M,           (ftheta*m)/M],
                   [0,       0,          0,                  1],
                   [0,       b/(M*l),    (M*g + g*m)/(M*l),  -(M*ftheta + ftheta*m)/(M*l)]])
@@ -31,26 +31,26 @@ if __name__ == '__main__':
         [-1/(M*l)]
     ])
 
-    [nx, nu] = Bc.shape # number of states and number or inputs
+    [nx, nu] = Bc.shape  # number of states and number or inputs
 
-    # Brutal forward euler discretization
+    # Simple forward euler discretization
     Ad = np.eye(nx) + Ac*Ts
     Bd = Bc*Ts
 
     # Reference input and states
-    xref = np.array([0.3, 0.0, 0.0, 0.0]) # reference state
-    uref = np.array([0.0])    # reference input
-    uminus1 = np.array([0.0])     # input at time step negative one - used to penalize the first delta u at time instant 0. Could be the same as uref.
+    xref = np.array([0.3, 0.0, 0.0, 0.0])  # reference state
+    uref = np.array([0.0])  # reference input
+    uminus1 = np.array([0.0])  # input at time step negative one - used to penalize the first delta u at time instant 0. Could be the same as uref.
 
     # Constraints
-    xmin = np.array([-1.0, -100, -100, -100])
-    xmax = np.array([1.0,   100.0, 100, 100])
+    xmin = np.array([-1.0, -100.0, -100.0, -100.0])
+    xmax = np.array([1.0,   100.0, 100.0, 100.0])
 
-    umin = np.array([-20])
-    umax = np.array([20])
+    umin = np.array([-20.0])
+    umax = np.array([20.0])
 
-    Dumin = np.array([-5])
-    Dumax = np.array([5])
+    Dumin = np.array([-5.0])
+    Dumax = np.array([5.0])
 
     # Objective function weights
     Qx = sparse.diags([.3, 0, 1.0, 0])   # Quadratic cost for states x0, x1, ..., x_N-1
@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     # Initial state
     phi0 = 15*2*np.pi/360
-    x0 = np.array([0, 0, phi0, 0]) # initial state
+    x0 = np.array([0, 0, phi0, 0])  # initial state
 
     # Prediction horizon
     Np = 20
@@ -83,9 +83,9 @@ if __name__ == '__main__':
     time_start = time.time()
 
     xstep = x0
-    uMPC =  uminus1
+    uMPC = uminus1
     for i in range(nsim):
-        xsim[i,:] = xstep
+        xsim[i, :] = xstep
 
         # MPC update and step. Could be in just one function call
         K.update(xstep, uMPC) # update with measurement

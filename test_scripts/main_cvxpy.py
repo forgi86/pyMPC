@@ -18,6 +18,7 @@ Ad = sparse.csc_matrix([
   [0.,     -0.9734, 0., 0., 0., 0., 0.,     -0.0488, 0.,  0.,     0.9846, 0.    ],
   [0.,      0.,     0., 0., 0., 0., 0.,      0.,     0.,  0.,     0.,     0.9846]
 ])
+
 Bd = sparse.csc_matrix([
   [0.,      -0.0726,  0.,     0.0726],
   [-0.0726,  0.,      0.0726, 0.    ],
@@ -57,7 +58,7 @@ N = 10
 # Define problem
 u = Variable((nu, N))
 x = Variable((nx, N+1))
-x_init = Parameter(nx)
+x_init = Parameter(nx) # parameter of the problem (changes from time to time)
 objective = 0
 constraints = [x[:,0] == x_init]
 for k in range(N):
