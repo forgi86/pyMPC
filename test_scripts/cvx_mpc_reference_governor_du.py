@@ -29,12 +29,16 @@ if __name__ == "__main__":
 
     # Constraints
     uref = 0
-    uinit = np.array([0.0])  # not used here
+    uinit = np.array([0.0])  #
     umin = np.array([-1000.0]) - uref
     umax = np.array([1000.0]) - uref
 
     ymin = np.array([-100.0])
     ymax = np.array([100.0])
+
+    Dumin = np.array([-2e-1])
+    Dumax = np.array([2e-1])
+
 
     # Objective function
     Qy = np.diag([20])   # or sparse.diags([])
@@ -62,14 +66,22 @@ if __name__ == "__main__":
         if k > 0:
             objective += quad_form(u[:, k] - u[:, k - 1], QDu)  # \sum_{k=1}^{N_p-1} (uk - u_k-1)'QDu(uk - u_k-1)
         else:  # at k = 0...
-            if uminus1 is not np.nan:  # if there is an uold to be considered
-                objective += quad_form(u[:, k] - uminus1, QDu)  # ... penalize the variation of u0 with respect to uold
+#            if uminus1[0] is not np.nan:  # if there is an uold to be considered
+            objective += quad_form(u[:, k] - uminus1, QDu)  # ... penalize the variation of u0 with respect to uold
 
         objective += quad_form(y[:, k] - r, Qy) \
                      + quad_form(u[:, k], Qu)  # objective function
         constraints += [x[:, k+1] == Ad@x[:, k] + Bd@u[:, k]]  # system dynamics constraint
         constraints += [ymin <= x[:, k], x[:, k] <= ymax]  # state interval constraint
         constraints += [umin <= u[:, k], u[:, k] <= umax]  # input interval constraint
+
+        if k > 0:
+            constraints += [Dumin <= u[:, k] - u[:, k-1], u[:, k] - u[:, k-1] <= Dumax]
+        else:  # at k = 0...
+#            if uminus1[0] is not np.nan:
+            constraints += [Dumin <= u[:, k] - uminus1, u[:, k] - uminus1 <= Dumax]
+
+
     objective += quad_form(y[:, Np] - r, QyN)
     prob = Problem(Minimize(objective), constraints)
 
