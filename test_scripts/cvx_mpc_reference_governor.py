@@ -15,6 +15,7 @@ if __name__ == "__main__":
     r_den = 0.9  # magnitude of poles
     wo_den = 0.2  # phase of poles (approx 2.26 kHz)
 
+    # Build a second-order discrete-time dynamics with dcgain=1 (inner loop model)
     H_noise = control.TransferFunction([1], [1, -2 * r_den * np.cos(wo_den), r_den ** 2], Ts)
     H_noise = H_noise / control.dcgain(H_noise)
     H_ss = control.ss(H_noise)
@@ -24,6 +25,7 @@ if __name__ == "__main__":
     Cd = np.array(H_ss.C)
     Dd = np.array(H_ss.D)
     [nx, nu] = Bd.shape  # number of states and number or inputs
+    [ny, _] = Cd.shape  # number of outputs
 
     # Constraints
     uref = 0
@@ -31,21 +33,20 @@ if __name__ == "__main__":
     umin = np.array([-1000.0]) - uref
     umax = np.array([1000.0]) - uref
 
-    xmin = np.array([-100.0, -100.0])
-    xmax = np.array([100.0,   100.0])
+    ymin = np.array([-100.0])
+    ymax = np.array([100.0])
 
     # Objective function
-    Q = sparse.diags([0.2, 0.3])
-    QN = sparse.diags([0.4, 0.5])  # final cost
-    R = 0.1*sparse.eye(1)
+    Qy = np.diag([20])   # or sparse.diags([])
+    QyN = np.diag([20])  # final cost
+    Qu = 0.1 * np.eye(1)
 
-    # Initial and reference states
-    x0 = np.array([0.1, 0.2])  # initial state
-    # Reference input and states
-    yref = 1.0
+    # Initial and reference
+    x0 = np.array([0.0, 0.0])  # initial state
+    r = 1.0  # Reference output
 
     # Prediction horizon
-    Np = 20
+    Np = 40
 
     # Define problem
     u = Variable((nu, Np))
@@ -55,17 +56,18 @@ if __name__ == "__main__":
     constraints = [x[:, 0] == x_init]
     y = Cd @ x
     for k in range(Np):
-        objective += quad_form(y[:, k] - xref, Q) \
-                     + quad_form(u[:, k], R)  # objective function
+        objective += quad_form(y[:, k] - r, Qy) \
+                     + quad_form(u[:, k], Qu)  # objective function
         constraints += [x[:, k+1] == Ad@x[:, k] + Bd@u[:, k]]  # system dynamics constraint
-        constraints += [xmin <= x[:, k], x[:, k] <= xmax]  # state interval constraint
+        constraints += [ymin <= x[:, k], x[:, k] <= ymax]  # state interval constraint
         constraints += [umin <= u[:, k], u[:, k] <= umax]  # input interval constraint
-    objective += quad_form(x[:, Np] - xref, QN)
+    objective += quad_form(y[:, Np] - r, QyN)
     prob = Problem(Minimize(objective), constraints)
 
     # Simulate in closed loop
     nsim = int(len_sim/Ts)  # simulation length(timesteps)
     xsim = np.zeros((nsim, nx))
+    ysim = np.zeros((nsim, ny))
     usim = np.zeros((nsim, nu))
     tsol = np.zeros((nsim, 1))
     tsim = np.arange(0, nsim)*Ts
@@ -73,6 +75,8 @@ if __name__ == "__main__":
 #    uminus1_val = uinit  # initial previous measured input is the input at time instant -1.
     time_start = time.time()
     for i in range(nsim):
+
+        ysim[i, :] = Cd @ x0
         x_init.value = x0  # set value to the x_init cvx parameter to x0
 
         time_start = time.time()
@@ -89,17 +93,14 @@ if __name__ == "__main__":
 
     # In[Plot time traces]
     fig, axes = plt.subplots(3, 1, figsize=(10, 10))
-    axes[0].plot(tsim, xsim[:, 0], "k", label='p')
-    axes[0].plot(tsim, xref[0]*np.ones(np.shape(tsim)), "r--", label="pref")
-    axes[0].set_title("Position (m)")
+    axes[0].plot(tsim, ysim[:, 0], "k", label='p')
+    axes[0].plot(tsim, r * np.ones(np.shape(tsim)), "r--", label="pref")
+    axes[0].set_title("Output (-)")
 
-    axes[1].plot(tsim, xsim[:, 1], label="v")
-    axes[1].plot(tsim, xref[1]*np.ones(np.shape(tsim)), "r--", label="vref")
-    axes[1].set_title("Velocity (m/s)")
 
     axes[2].plot(tsim, usim[:, 0], label="u")
     axes[2].plot(tsim, uref*np.ones(np.shape(tsim)), "r--", label="uref")
-    axes[2].set_title("Force (N)")
+    axes[2].set_title("Input (N)")
 
     for ax in axes:
         ax.grid(True)
