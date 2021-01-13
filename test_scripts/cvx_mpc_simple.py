@@ -105,3 +105,6 @@ if __name__ == "__main__":
     # In[Timing]
     plt.figure()
     plt.hist(tsol[1:])
+    plt.xlabel("MPC solution time (ms)")
+
+    print(f"First MPC execution takes {tsol[0, 0]:.0f} ms")
