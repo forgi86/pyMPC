@@ -85,6 +85,7 @@ for k in range(Np):
     else: # at k = 0...
         if uminus1 is not np.nan:  # if there is an uold to be considered
             constraints += [Dumin <= u[:,k] - uminus1 , u[:, k] - uminus1 <= Dumax]
+
 objective += quad_form(x[:, Np] - xref, QxN)                          # add final cost for xN
 prob = Problem(Minimize(objective), constraints)
 
