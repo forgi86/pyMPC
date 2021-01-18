@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy
 import scipy.sparse as sparse
 import time
 import control
@@ -16,35 +17,39 @@ if __name__ == "__main__":
     wo_den = 0.2  # phase of poles (approx 2.26 kHz)
 
     # Build a second-order discrete-time dynamics with dcgain=1 (inner loop model)
-    H_noise = control.TransferFunction([1], [1, -2 * r_den * np.cos(wo_den), r_den ** 2], Ts)
-    H_noise = H_noise / control.dcgain(H_noise)
-    H_ss = control.ss(H_noise)
+    H_sys = control.TransferFunction([1], [1, -2 * r_den * np.cos(wo_den), r_den ** 2], Ts)
+    H_sys = H_sys / control.dcgain(H_sys)
+    H_ss = control.ss(H_sys)
 
     Ad = np.array(H_ss.A)
-    Bd = np.array(H_ss.B)
+    Bd = np.c_[Bd, 1 / 2 * Bd]
     Cd = np.array(H_ss.C)
     Dd = np.array(H_ss.D)
+
+    Ad = scipy.linalg.block_diag(Ad, Ad)
+    Bd = scipy.linalg.block_diag(Bd, Bd)
+
     [nx, nu] = Bd.shape  # number of states and number or inputs
     [ny, _] = Cd.shape  # number of outputs
 
     # Constraints
-    uref = 0
-    uinit = np.array([0.0])  #
-    umin = np.array([-1000.0]) - uref
-    umax = np.array([1000.0]) - uref
+    gref = 0
+    ginit = np.array([0.0])  #
+    gmin = np.array([-1000.0]) - gref
+    gmax = np.array([1000.0]) - gref
 
     ymin = np.array([-100.0])
     ymax = np.array([100.0])
 
-    Dumin = np.array([-2e-1])
-    Dumax = np.array([2e-1])
+    Dgmin = np.array([-2e-1])
+    Dgmax = np.array([2e-1])
 
 
     # Objective function
     Qy = np.diag([20])   # or sparse.diags([])
     QyN = np.diag([20])  # final cost
-    Qu = 0.01 * np.eye(1)
-    QDu = 0.5 * sparse.eye(1)  # Quadratic cost for Du0, Du1, ...., Du_N-1
+    #Qg = 0.01 * np.eye(1)
+    QDg = 0.5 * sparse.eye(1)  # Quadratic cost for Du0, Du1, ...., Du_N-1
 
     # Initial and reference
     x0 = np.array([0.0, 0.0])  # initial state
@@ -64,22 +69,23 @@ if __name__ == "__main__":
     y = Cd @ x
     for k in range(Np):
         if k > 0:
-            objective += quad_form(u[:, k] - u[:, k - 1], QDu)  # \sum_{k=1}^{N_p-1} (uk - u_k-1)'QDu(uk - u_k-1)
+            objective += quad_form(u[:, k] - u[:, k - 1], QDg)  # \sum_{k=1}^{N_p-1} (uk - u_k-1)'QDu(uk - u_k-1)
         else:  # at k = 0...
 #            if uminus1[0] is not np.nan:  # if there is an uold to be considered
-            objective += quad_form(u[:, k] - uminus1, QDu)  # ... penalize the variation of u0 with respect to uold
+            objective += quad_form(u[:, k] - uminus1, QDg)  # ... penalize the variation of u0 with respect to uold
 
-        objective += quad_form(y[:, k] - r, Qy) \
-                     + quad_form(u[:, k], Qu)  # objective function
+        objective += quad_form(y[:, k] - r, Qy)
+        #objective += quad_form(u[:, k], Qg)  # objective function
+
         constraints += [x[:, k+1] == Ad@x[:, k] + Bd@u[:, k]]  # system dynamics constraint
         constraints += [ymin <= x[:, k], x[:, k] <= ymax]  # state interval constraint
-        constraints += [umin <= u[:, k], u[:, k] <= umax]  # input interval constraint
+        constraints += [gmin <= u[:, k], u[:, k] <= gmax]  # input interval constraint
 
         if k > 0:
-            constraints += [Dumin <= u[:, k] - u[:, k-1], u[:, k] - u[:, k-1] <= Dumax]
+            constraints += [Dgmin <= u[:, k] - u[:, k - 1], u[:, k] - u[:, k - 1] <= Dgmax]
         else:  # at k = 0...
 #            if uminus1[0] is not np.nan:
-            constraints += [Dumin <= u[:, k] - uminus1, u[:, k] - uminus1 <= Dumax]
+            constraints += [Dgmin <= u[:, k] - uminus1, u[:, k] - uminus1 <= Dgmax]
 
 
     objective += quad_form(y[:, Np] - r, QyN)
@@ -93,7 +99,7 @@ if __name__ == "__main__":
     tsol = np.zeros((nsim, 1))
     tsim = np.arange(0, nsim)*Ts
 
-    uMPC = uinit  # initial previous measured input is the input at time instant -1.
+    uMPC = ginit  # initial previous measured input is the input at time instant -1.
     time_start = time.time()
     for i in range(nsim):
 
@@ -120,7 +126,7 @@ if __name__ == "__main__":
 
 
     axes[2].plot(tsim, usim[:, 0], label="u")
-    axes[2].plot(tsim, uref*np.ones(np.shape(tsim)), "r--", label="uref")
+    axes[2].plot(tsim, gref * np.ones(np.shape(tsim)), "r--", label="uref")
     axes[2].set_title("Input (N)")
 
     for ax in axes:
