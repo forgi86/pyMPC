@@ -127,7 +127,6 @@ if __name__ == "__main__":
     axes[0].plot(t_sim, y_sim[:, 1], "b", label='y2')
     axes[0].set_title("Output (-)")
 
-
     axes[1].plot(t_sim, g_sim[:, 0], "k", label="g1")
     axes[1].plot(t_sim, g_sim[:, 1], "b", label="g2")
     axes[1].set_title("Input (-)")
@@ -142,3 +141,4 @@ if __name__ == "__main__":
     plt.xlabel("MPC solution time (ms)")
 
     print(f"First MPC execution takes {t_MPC[0, 0]:.0f} ms")
+    print(f"Following MPC execution take {np.max(t_MPC[1:, 0]):.0f} ms in the worst case")
