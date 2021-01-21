@@ -5,6 +5,7 @@ import time
 from cvxpy import Variable, Parameter, Minimize, Problem, OSQP, quad_form
 from system_dynamics import Ad, Bd, Cd, Dd
 
+
 if __name__ == "__main__":
 
     # In[Constants]
@@ -12,7 +13,8 @@ if __name__ == "__main__":
     len_sim = 120  # simulation length (s)
 
     [nx, ng] = Bd.shape  # number of states and number or inputs
-    [ny, _] = Cd.shape  # number of outputs
+    [ny, nx_2] = Cd.shape  # number of outputs
+    assert(nx == nx_2)
 
     # In[MPC Settings]
 
