@@ -1,4 +1,4 @@
-\documentclass[a4paper,12pt,fleqn]{book}
+\documentclass[a4paper,12pt,fleqn]{article}
 \usepackage{amsmath}
 \usepackage{graphicx}
 
@@ -7,10 +7,24 @@
 \usepackage{amssymb}
 \usepackage{subfigure}
 \usepackage{amssymb}
+\usepackage{bm}
+
+\newcommand{\nin}{n_u}
+\newcommand{\nx}{n_x}
+
+\newcommand{\lQP}{l}
+\newcommand{\uQP}{u}
+\newcommand{\AQP}{\mathbf{A}}
+\newcommand{\PQP}{\mathbf{P}}
+\newcommand{\qQP}{\mathbf{q}}
+\newcommand{\xQP}{\mathbf{z}}
 
 \newcommand{\MPC}{\mathrm{MPC}}
-\newcommand{\varx}{\mathbf{x}}
-\newcommand{\varu}{\mathbf{u}}
+\newcommand{\varx}{{X}}
+\newcommand{\varu}{{U}}
+\newcommand{\varepsvec}{\bm{\epsilon}}
+\newcommand{\varxvec}{\mathbf{x}}
+\newcommand{\varuvec}{\mathbf{u}}
 \newcommand{\slack}{\epsilon}
 \newcommand{\QxN}{Q_{x_N}}
 \newcommand{\Qx}{Q_{x}}
@@ -28,33 +42,66 @@
 
 \maketitle
 
-\chapter{Mathematical formulation}
+\section{Mathematical formulation}
+Let us consider a discrete-time linear dynamical system with $\nin$ inputs and $\nx$ states:
+\begin{align}
+ x_{k+1} = A x_{k} + B u_{k},
+\end{align}
+with $A \in \mathbb{R}^{\nx \times \nx}$ and $B \in \mathbb{R}^{\nx \times \nin}$.
+
 The MPC problem solved by pyMPC is:
 \begin{subequations}
 \label{eq:MPC}
 \begin{align}
-  &\arg \min_{\varx,\varu} 
-  \overbrace{\big(x_N - x_{ref}\big)^\top \QxN \big(x_N - x_{ref}\big)}^{=J_{x_N}} + 
-  \overbrace{\sum_{k=0}^{\Np-1} \big(x_k - x_{ref}\big)^\top \Qx\big(x_k - x_{ref}\big)}^{J_{x}}+ \nonumber \\
+  &\arg \min_{\varu} 
+  \overbrace{\frac{1}{2}\big(x_N - x_{\rm ref}\big)^\top \QxN \big(x_N - x_{\rm ref}\big)}^{=J_{Q_{x_N}}} + 
+  \overbrace{\frac{1}{2}\sum_{k=0}^{\Np-1} \big(x_k - x_{\rm ref}\big)^\top \Qx\big(x_k - x_{\rm ref}\big)}^{J_{Q_x}}+ \nonumber \\
   &  + 
-    \overbrace{\sum_{k=0}^{\Np-1} \big(u_k - u_{ref}\big)^\top \Qu \big(u_k - u_{ref}\big)}^{J_u}
+    \overbrace{\frac{1}{2}\sum_{k=0}^{\Np-1} \big(u_k - u_{\rm ref}\big)^\top \Qu \big(u_k - u_{\rm ref}\big)}^{J_u}
     +  
-  \overbrace{\sum_{k=0}^{\Np-1} \Delta u_k^\top \Qdu \Delta u_k}^{J_{\Delta u}} \\ \nonumber
-  &\text{subject to} \nonumber\\
+  \overbrace{\frac{1}{2}\sum_{k=0}^{\Np-1} \Delta u_k^\top \Qdu \Delta u_k}^{J_{\Delta u}} \\ \nonumber
+  &\text{subject to}: \nonumber\\
   &x_{k+1} = Ax_k + B u_k \label{eq:linear_dynamics} \\ 
-  &u_{min} \leq u_k \leq u_{max}\\
-  &x_{min} \leq x_k \leq x_{max}\\
-  &\Delta u_{min} \leq \Delta u_k \leq \Delta u_{max}\\
+  &u_{\rm min} \leq u_k \leq u_{\rm max}\\
+  &x_{\rm min} \leq x_k \leq x_{\rm max}\\
+  &\Delta u_{\rm min} \leq \Delta u_k \leq \Delta u_{\rm max}\\
   &x_0 = \bar x\\
-  &u_{-1} = \bar u
+  &u_{-1} = \bar u,
 \end{align}
-\end{subequations} where $\Delta u_k = u_k - u_{k-1}$.
-
-The optimization variables are 
+\end{subequations} where $\Delta u_k = u_k - u_{k-1}$ and the optimization variables are the elements of the input sequence:
 \begin{align}
-  \varx & = \begin{bmatrix}x_0 & x_1 & \dots & x_\Np\end{bmatrix},\\
-  \varu & = \begin{bmatrix}u_0 & u_1 & \dots & u_{\Np-1}\end{bmatrix},\\  
+  \varu & = \left\{ u_0,\ u_1,\ \dots, \ u_{\Np-1} \right \}.
+%\begin{bmatrix}u_0 & u_1 & \dots & u_{\Np-1}\end{bmatrix}.
 \end{align}
+
+According to the solution strategy, the elements of the state sequence:
+\begin{equation}
+  \varx  = \left\{ x_0,\ x_1,\ \dots, \ x_{\Np} \right \}\\ 
+\end{equation}
+may be either included as optimization variables (sparse implementation), or eliminated (dense implementation).
+
+\subsection{Notation}
+The column vector $\varuvec \in \mathbb{R}^{\Np \nin \times 1}$ contains all the stacked entries of the input sequence $U$:
+\begin{equation}
+ \varuvec^\top = \begin{bmatrix} u_0^\top &u_1^\top &\dots& u_{\Np-1}^\top\end{bmatrix}^\top. 
+\end{equation}
+Similarly, the column vector $\varxvec \in \mathbb{R}^{\Np \nx \times 1}$ is defined as:
+\begin{equation}
+ \varxvec^\top = \begin{bmatrix} x_0^\top &x_1^\top &\dots& x_{\Np}^\top\end{bmatrix}^\top,
+\end{equation}
+the column vector $\varxvec_{\rm ref} \in \mathbb{R}^{\Np \nx \times 1}$ is defined as:
+\begin{equation}
+ {\varxvec}_{\rm ref}^\top = \begin{bmatrix} x_{\rm ref}^\top &x_{\rm ref}^\top &\dots& x_{\rm ref}^\top\end{bmatrix}^\top,
+\end{equation}
+and finally the column vector $\varuvec_{\rm ref}$ is defined as:
+\begin{equation}
+ {\varuvec}_{\rm ref}^\top = \begin{bmatrix} u_{\rm ref}^\top &u_{\rm ref}^\top &\dots& u_{\rm ref}^\top\end{bmatrix}^\top.
+\end{equation}
+
+Note that we consider a constant state reference $x_{\rm ref}$ over the prediction horizon for notation simplicity. The extension to a varying reference
+is straightforward (and actually implemented in pyMPC).
+ 
+\subsection{Receding horizon implementation}
 In a typical implementation, the MPC input is applied in \emph{receding horizon}. At each time step $i$, the problem \eqref{eq:MPC} is solved with $x_0=x[i],\;u_{-1}=u[{i-1}]$ and an optimal input sequence $u_{0},\dots,u_{\Np}$ is obtained. The first element of this sequence $u_0$ is the control input that is actually applied at time instant $i$. At time instant $i+1$, a new state $x[i+1]$ is measured (or estimated), and the process is iterated. 
 
 Thus, formally, the MPC control law is a (static) function of the current state and the previous input:
@@ -62,70 +109,80 @@ Thus, formally, the MPC control law is a (static) function of the current state 
  u_{MPC} = K(x[i], u[i-1]).
 \end{equation}
 
-Note that this function also depends on the references $x_{ref}$ and $u_{ref}$ and on the system matrices $A$ and $B$.
+Note that this function also depends on the references $x_{\rm ref}$ and $u_{\rm ref}$ and on the system matrices $A$ and $B$.
 
 \section{Quadratic Programming Formulation}
-The QP solver expects a problem with form: 
+The OSQP Quadratic Programming (QP) solver expects a problem with form: 
 \begin{subequations}
 \label{eq:QP}
 \begin{align}
- &\min \frac{1}{2} x^\top P x +  q^\top x \\
+ &\min \frac{1}{2} \xQP^\top \PQP \xQP +  \qQP^\top \xQP \\
  &\text{subject to} \nonumber \\
- &l \leq Ax \leq u
+ &\lQP \leq \AQP \xQP \leq \uQP
 \end{align}
 \end{subequations}
-The challenge here is to rewrite the MPC optimization problem \eqref{eq:MPC} in form
-\eqref{eq:QP} to use the standard QP solver. 
+To implement the MPC controller using the OSQP solver, we need to re-write the MPC optimization problem \eqref{eq:MPC} in form
+\eqref{eq:QP}. 
+
+\section{Sparse Implementation}
+In the sparse implementation, the dynamic constraints given by the linear dynamics equations \eqref{eq:linear_dynamics} are included explicitly and 
+the state sequence $X$ is considered as an optimization variable, along with the input sequence $U$.
 
 \subsection{Cost function}
-By direct inspection, the non-constant terms of the cost function in $Q_x$ are:
+\subsubsection{Terms in $Q_x$ and $Q_{x_N}$}
+By direct inspection, the non-constant terms of the cost function in $Q_x$ and $Q_{x_N}$ are:
 \begin{multline}
 \label{eq:J_Qx}
  J_{Q_x} = \frac{1}{2}
  \begin{bmatrix}
-  x_0^\top & x_1^\top &\dots & x_{\Np-1}^\top
+  x_0^\top & x_1^\top &\dots & x_{\Np}^\top
  \end{bmatrix}^\top
- \blkdiag(Q_x, Q_x, \dots, Q_x)
+ \overbrace{\blkdiag(Q_x, Q_x, \dots, Q_{x_N})}^{=\mathcal{Q}_x}
  \begin{bmatrix}
-  x_0 \\  x_1\\ \vdots\\  x_{\Np-1}
- \end{bmatrix}
- %\begin{bmatrix}
- % Q_x       & 0  &\dots   & \dots & 0\\
- % 0         & Q_x  &0       & \dots & 0\\
- % 0         & 0     &\ddots  & \dots & 0\\
- % \vdots         & 0    &0       & Q_x & 0\\ 
- % 0         & 0    &0       & 0 &  Q_x\ 
- % \end{bmatrix}
- + \\
+  x_0 \\  x_1\\ \vdots\\  x_{\Np}
+ \end{bmatrix} + \\
  +
   \begin{bmatrix}
-  -x_{ref}^\top Q_x & -x_{ref}^\top Q_x &\dots & -x_{ref}^\top Q_x
+  -{x_{\rm ref}}^\top Q_x & -{x_{\rm ref}}^\top Q_x &\dots & -{x_{\rm ref}}^\top Q_{x_N}
  \end{bmatrix} 
  \begin{bmatrix}
-  x_0 \\ x_1 \\ \vdots \\ x_{\Np-1}
- \end{bmatrix}^\top 
+  x_0 \\ x_1 \\ \vdots \\ x_{\Np}
+ \end{bmatrix}^\top.
  \end{multline}
- and similarly for the term $J_{Q_{x_\Np}}$ and $J_{Q_u}$: 
+ More compactly, this is equivalent to:
+ \begin{equation}
+  J_{Q_x} = \frac{1}{2} \varxvec^\top \mathcal{Q}_x \varxvec - \varxvec_{\rm ref}^\top \mathcal{Q}_x \varxvec.
+ \end{equation}
+
+ \subsubsection{Terms in $Q_u$}
+ Similarly, for the term $J_{Q_u}$: 
 \begin{multline}
 \label{eq:J_Qu}
  J_{Q_u} = \frac{1}{2}
  \begin{bmatrix}
   u_0^\top & u_1^\top &\dots & u_{\Np-1}^\top
  \end{bmatrix}
- \blkdiag(Q_u, Q_u, \dots, Q_u)
+ \overbrace{\blkdiag(Q_u, Q_u, \dots, Q_u)}^{\mathcal{Q}_u}
  \begin{bmatrix}
   u_0 \\  u_1\\ \vdots\\  u_{\Np-1}
  \end{bmatrix}
   + \\
  +
   \begin{bmatrix}
-  -u_{ref}^\top Q_u & -u_{ref}^\top Q_u &\dots & -u_{ref}^\top Q_u
+  -{u_{\rm ref}}^\top Q_u & -{u_{\rm ref}}^\top Q_u &\dots & -{u_{\rm ref}}^\top Q_u
  \end{bmatrix}
  \begin{bmatrix}
   u_0 \\ u_1 \\ \vdots \\ u_{\Np-1}
  \end{bmatrix} 
  \end{multline}
- For the terms in $Q_\Delta u$ we have instead
+ More compactly, this is equivalent to:
+ \begin{equation}
+  J_{Q_u} = \frac{1}{2} \varuvec^\top \mathcal{Q}_u \varuvec - \varuvec_{\rm ref}^\top \mathcal{Q}_u \varuvec.
+ \end{equation}
+
+  \subsubsection{Terms in $Q_{\Delta u}$}
+ As for the terms in $Q_{\Delta u}$ we have instead:
+ \begin{small}
 \begin{multline}
  J_{\Delta u} = \frac{1}{2}
  \begin{bmatrix}
@@ -142,20 +199,27 @@ By direct inspection, the non-constant terms of the cost function in $Q_x$ are:
   \end{bmatrix}
  \begin{bmatrix}
   u_0 \\  u_1\\ \vdots\\  u_{\Np-1}
- \end{bmatrix}^\top
- + \\
- +
-  \begin{bmatrix}
-  -{\bar u}^\top Q_{\Delta u} & 0 & \dots  & 0
- \end{bmatrix}
- \begin{bmatrix}
-  u_0 \\ u_1 \\ \vdots \\ u_{\Np-1}
- \end{bmatrix}^\top 
+ \end{bmatrix}^\top \\
+-\baru^\top Q_{\Delta u}u_0
  \end{multline} 
+ \end{small}
+ More compactly, this is equivalent to:
+\begin{equation*}
+ J_{\Delta u} = \frac{1}{2} \varuvec^\top \mathcal{Q}_{\Delta u} \varuvec -\baru^\top Q_{\Delta u}u_0
+\end{equation*}
+ It is convenient to write the above expression using stacked vectors only:
+\begin{equation}
+ J_{\Delta u} = \frac{1}{2} \varuvec^\top \mathcal{Q}_{\Delta u} \varuvec +   
+ \begin{bmatrix}
+  -{\baru}^\top Q_{\Delta u} & 0 & \dots  & 0
+ \end{bmatrix} \varuvec
+\end{equation}
+ 
 \subsection{Constraints}
 \subsubsection{Linear dynamics}
 Let us consider the linear equality constraints \eqref{eq:linear_dynamics} representing the system dynamics. These can 
-be written in matrix form as
+be written in matrix form as:
+\begin{small}
 \begin{equation}
 \begin{bmatrix}
 x_0\\
@@ -188,7 +252,7 @@ x_{\Np}
  \vdots &0      &\ddots & 0\\
  0      &0      &\dots  &B_d
 \end{bmatrix}
-}^{=\mathcal B}
+}^{=\mathcal{B}}
 \begin{bmatrix}
 u_0\\
 u_1\\
@@ -204,25 +268,26 @@ u_{\Np-1}
 \vdots \\
 0 
 \end{bmatrix}
-}^{=\mathcal{C}}
+}^{=\mathcal{C}}.
 \end{equation}
-we get a set of linear equality constraints representing the system dynamics \eqref{eq:linear_dynamics}.
+\end{small}
+Thus, we get a set of linear equality constraints representing the system dynamics \eqref{eq:linear_dynamics}.
 These constraints can be written as
 \begin{equation}
  \begin{bmatrix}
   (\mathcal{A}-I) & \mathcal{B}
  \end{bmatrix}
  \begin{bmatrix}
-  x\\
-  u
+  \varxvec\\
+  \varuvec
  \end{bmatrix}
  = \mathcal{C}.
 \end{equation}
 \subsubsection{Variable bounds: $x$ and $u$}
-Bounds on $x$ and $u$ are readily implemented as
+The bounds on $x$ and $u$ are readily implemented as:
 \begin{equation}
 \begin{bmatrix}
- x_{min}\\u_{min}
+ x_{\rm min}\\u_{\rm min}
 \end{bmatrix}
 \leq
 \begin{bmatrix}
@@ -230,20 +295,20 @@ Bounds on $x$ and $u$ are readily implemented as
  0 & I
 \end{bmatrix}
 \begin{bmatrix}
- x\\u
+ \varxvec\\ \varuvec
 \end{bmatrix}
 \leq
 \begin{bmatrix}
- x_{max}\\u_{max}
+ x_{\rm max}\\u_{\rm max}
 \end{bmatrix}.
 \end{equation}
 \subsubsection{Variable bounds: $\Delta u$}
 \begin{equation}
 \begin{bmatrix}
-u_{-1} +\Delta u_{min}\\
-\Delta u_{min}\\
+u_{-1} +\Delta u_{\rm min}\\
+\Delta u_{\rm min}\\
 \vdots\\
-\Delta u_{min}\\
+\Delta u_{\rm min}\\
 \end{bmatrix} \leq 
 \begin{bmatrix}
   I  &  0 & \dots & \dots  & 0 & 0\\
@@ -260,19 +325,21 @@ u_{\Nc-1}\\
 \end{bmatrix}
 \leq 
 \begin{bmatrix}
-u_{-1} +\Delta u_{max}\\
-\Delta u_{max}\\
+u_{-1} +\Delta u_{\rm max}\\
+\Delta u_{\rm max}\\
 \vdots\\
-\Delta u_{max}\\
+\Delta u_{\rm max}\\
 \end{bmatrix}
 \end{equation}
 
-\subsubsection{Slack variables}
+\subsection{Slack variables}
 Bounds on $x$ may result in an problem unfeasible! A common solution
-is to transform the hard constraints in $x$ into soft constraints by means of  \emph{slack variables} $\slack$.
+is to transform the hard constraints in $x$ into soft constraints by means of  \emph{slack variables} $\varepsvec$. 
+In the current implementation, there are as many slack variables as state variables, i.e. $\varepsvec \in \mathbb{R}^{\Np\nx \times 1}$.
+We use the constraint:
 \begin{equation}
 \begin{bmatrix}
- x_{min}\\u_{min}
+ x_{\rm min}\\u_{\rm min}
 \end{bmatrix}
 \leq
 \begin{bmatrix}
@@ -280,18 +347,28 @@ is to transform the hard constraints in $x$ into soft constraints by means of  \
  0 &I & 0
 \end{bmatrix}
 \begin{bmatrix}
- x\\
- u\\
- \slack
+ \varxvec\\
+ \varuvec\\
+ \varepsvec
 \end{bmatrix}
 \leq
 \begin{bmatrix}
- x_{max}\\u_{max}
-\end{bmatrix}
-\end{equation}.
+ x_{\rm max}\\u_{\rm max}
+\end{bmatrix}.
+\end{equation}
 
-\section{Control Horizon}
-Sometimes, we may want to use a control horizon $\Nc < \Np$ instead of the standard $\Nc = \Np$. The input is constant for $\Nc \geq \ Np$.
+In order to penalize constraint violation, we have a penalty term in the cost function:
+\begin{equation}
+ J_{\slack} = \frac{1}{2} \varepsvec^\top \mathcal{Q}_{\slack} \varepsvec,
+\end{equation}
+where 
+\begin{equation}
+\mathcal{Q}_{\slack} = \blkdiag(Q_{\slack}, Q_{\slack}, \dots Q_{\slack})
+\end{equation}
+and $Q_{\slack}$ is $\sigma I_{\nx}$, with $\sigma$ a ``large'' constant (e.g. $\sigma=10^4$).
+
+\subsection{Control Horizon}
+Sometimes, we may want to use a control horizon $\Nc < \Np$ instead of the standard $\Nc = \Np$. In this case, the input considered is constant for $\Nc \geq \Np$.
 
 \begin{equation}
 \begin{bmatrix}
@@ -327,7 +404,7 @@ x_{\Np}
  0      &0      &\dots  &\vdots\\
  0      &0      &\dots  &B_d\\
 \end{bmatrix}
-}^{=\mathcal B}
+}^{=\mathbb B}
 \begin{bmatrix}
 u_0\\
 u_1\\
@@ -362,7 +439,7 @@ The contributions $J_{Q_u}$ of the cost function also changes:
   + \\
  +
   \begin{bmatrix}
-  -u_{ref}^\top Q_u & -u_{ref}^\top Q_u &\dots & -(\Np - \Nc + 1)u_{ref}^\top Q_u
+  -{u_{\rm ref}}^\top Q_u & -{u_{\rm ref}}^\top Q_u &\dots & -(\Np - \Nc + 1){u_{\rm ref}}^\top Q_u
  \end{bmatrix}
  \begin{bmatrix}
   u_0 \\ u_1 \\ \vdots \\ u_{\Np-1}
@@ -371,8 +448,9 @@ The contributions $J_{Q_u}$ of the cost function also changes:
 Instead, $J_\Delta u$ does not change (because the input is constant for $k \geq N_c$!
 
 
-\chapter{Alternative Implementation}
-
+\section{Dense Implementation}
+In the dense implementation, the elements of the input sequence $U$ are the only optimization variables.
+The state variables are eliminated using the so-called Lagrange equations:
 \begin{equation}
 \begin{bmatrix}
 x_1\\
@@ -406,56 +484,62 @@ u_1\\
 u_2\\
 \vdots\\
 u_{\Np-1}
-\end{bmatrix}
+\end{bmatrix}.
+\end{equation}
+In vector notation, this is simply:
+\begin{equation}
+ \varxvec = \mathcal{A}x_0 + \mathcal{B} \varuvec
+\end{equation}
+
+
+The elements of the cost function may be written compactly as:
+\begin{equation}
+ J_{Q_x} = \frac{1}{2} \left(\mathcal{A} x_0 + \mathcal{B} \varuvec - \varxvec_{\rm ref}\right)^\top \mathcal{Q}_x \left(\mathcal{A} x_0 + \mathcal{B} \varuvec - \varxvec_{\rm ref}\right)
 \end{equation}
 
 \begin{equation}
- J_{Q_x} = \frac{1}{2} \left(\mathcal{A} x_0 + \mathcal{B} U - X_{ref}\right)^\top \mathcal{Q}_x \left(\mathcal{A} x_0 + \mathcal{B} U - X_{ref}\right)
+ J_{Q_u} =  \frac{1}{2} (\varuvec - \varuvec_{\rm ref})^\top \mathcal{Q}_u (\varuvec-\varuvec_{\rm ref})
 \end{equation}
 
 \begin{equation}
- J_{Q_u} =  \frac{1}{2} (U - U_{ref})^\top \mathcal{Q}_u (U-U_{ref})
-\end{equation}
-
-\begin{equation}
- J_{Q_{\Delta u}} =  \frac{1}{2} U^\top \mathcal{Q}_{\Delta u} U +   
+ J_{Q_{\Delta u}} =  \frac{1}{2} \varuvec^\top \mathcal{Q}_{\Delta u} \varuvec +   
  \begin{bmatrix}
   -{\baru}^\top Q_{\Delta u} & 0 & \dots  & 0
- \end{bmatrix} U
+ \end{bmatrix} \varuvec
 \end{equation}
 
 Summing up and expanding terms:
 \begin{multline}
  J = 
- \frac{1}{2}U^\top \mathcal{B}^\top \mathcal{Q}_x \mathcal{B} U + 
- \frac{1}{2} (\mathcal{A}x_o - X_{ref})^\top \mathcal{Q}_x (\mathcal{A}x_0-X_{ref}) +
- (\mathcal{A}x_0 -X_{ref})^\top\mathcal{Q}_x \mathcal{B} U + \\
- + \frac{1}{2} U^\top \mathcal{Q}_u U +
- \frac{1}{2}U_{ref}^\top \mathcal{Q}_uU^{ref} + 
- -U_{ref}^\top\mathcal{Q}_u U +\\ 
- +\frac{1}{2} U^\top \mathcal{Q}_{\Delta u} U +
+ \frac{1}{2}\varuvec^\top \mathcal{B}^\top \mathcal{Q}_x \mathcal{B} \varuvec + 
+ \frac{1}{2} (\mathcal{A}x_0 - \varxvec_{\rm ref})^\top \mathcal{Q}_x (\mathcal{A}x_0-\varxvec_{\rm ref}) +
+ (\mathcal{A}x_0 -\varxvec_{\rm ref})^\top\mathcal{Q}_x \mathcal{B} \varuvec + \\
+ + \frac{1}{2} \varuvec^\top \mathcal{Q}_u \varuvec +
+ \frac{1}{2}{\varuvec_{\rm ref}}^\top \mathcal{Q}_u \varuvec_{\rm ref} + 
+ -{\varuvec_{\rm ref}}^\top\mathcal{Q}_u \varuvec +\\ 
+ +\frac{1}{2} \varuvec^\top \mathcal{Q}_{\Delta u} \varuvec +
 \begin{bmatrix}
   -{\baru}^\top Q_{\Delta u} & 0 & \dots  & 0
- \end{bmatrix} U 
+ \end{bmatrix} \varuvec 
 \end{multline}
 Neglecting constant terms and collecting:
 \begin{multline}
- J = C + \frac{1}{2} U^\top \overbrace{\big(\mathcal{B}^\top \mathcal{Q}_x \mathcal{B} + \mathcal{Q}_u + \mathcal{Q}_{\Delta u}\big)} ^{=\mathcal{P}}U + \\
- \overbrace{\bigg [(\mathcal{A}x_o - X_{ref})^\top \mathcal{Q}_x \mathcal{B} -U_{ref}^\top\mathcal{Q}_u -
+ J = C + \frac{1}{2} \varuvec^\top \overbrace{\big(\mathcal{B}^\top \mathcal{Q}_x \mathcal{B} + \mathcal{Q}_u + \mathcal{Q}_{\Delta u}\big)} ^{=\PQP}\varuvec + \\
+ \overbrace{\bigg [(\mathcal{A}x_o - X_{\rm ref})^\top \mathcal{Q}_x \mathcal{B} -{U_{\rm ref}}^\top\mathcal{Q}_u -
  \begin{bmatrix}
   {\baru}^\top Q_{\Delta u} & 0 & \dots  & 0
- \end{bmatrix}\bigg)}^{=b^\top} U
+ \end{bmatrix}\bigg)}^{=\qQP^\top} \varuvec
 \end{multline}
 Thus, we have
 \begin{equation}
- p = \mathcal{B}^\top \mathcal{Q}_x(\mathcal{A}x_0 - X_{ref}) - \mathcal{Q}_uU_{ref} + 
+ \qQP = \mathcal{B}^\top \mathcal{Q}_x(\mathcal{A}x_0 - X_{\rm ref}) - \mathcal{Q}_uU_{\rm ref} + 
   \begin{bmatrix}
  -Q_{\Delta u} \baru \\ 0 \\ \vdots \\0
  \end{bmatrix}
 \end{equation}
 expanding
 \begin{equation}
- p = \overbrace{\mathcal{B}^\top \mathcal{Q}_x\mathcal{A}}^{=p_{x_0}}x_0  \;+\; \overbrace{-\mathcal{B}^\top \mathcal{Q}_x}^{p_{X_{ref}}}X_{ref}\;+\; \overbrace{-\mathcal{Q}_u}^{=p_{U_{ref}}}U_{ref} + 
+ \qQP = \overbrace{\mathcal{B}^\top \mathcal{Q}_x\mathcal{A}}^{=p_{x_0}}x_0  \;+\; \overbrace{-\mathcal{B}^\top \mathcal{Q}_x}^{p_{X_{\rm ref}}}X_{\rm ref}\;+\; \overbrace{-\mathcal{Q}_u}^{=p_{U_{\rm ref}}}U_{\rm ref} + 
 \overbrace{
   \begin{bmatrix}
  -Q_{\Delta u} \\ 0 \\ \vdots \\0
@@ -463,20 +547,24 @@ expanding
 }^{=p_{\baru}}
 \baru
 \end{equation}
-For an unconstrained problem the minimum is in 
+\subsection{Unconstrained case}
+For an unconstrained problem, the optimal value of $\varuvec$ is:
 \begin{equation}
- U^{opt} = -P^{-1}p
+ \varuvec^{\rm opt} = -\PQP^{-1}\qQP
 \end{equation}
-Expanding
+Expanding, we obtain:
 \begin{equation}
- U^{opt} = k_{x_0} x_0 + k_{X_{ref}}X_{ref} + k_{U_{ref}} U_{ref} k_{\baru} \baru
+ \varuvec^{\rm opt} = k_{x_0} x_0 + k_{\varxvec_{\rm ref}}\varxvec_{\rm ref} + k_{\varuvec_{\rm ref}} \varuvec_{\rm ref} k_{\baru} \baru
 \end{equation}
-with 
+with:
+\begin{subequations}
 \begin{align}
-k_{x_0} &= -P^{-1}p_{x_0}\\
-k_{X_{ref}} &= -P^{-1}p_{X_{ref}}\\
-k_{U_{ref}} &= -P^{-1}p_{U_{ref}}\\
-k_{\baru} &= -P^{-1}p_{\baru} 
+k_{x_0} &= -\PQP^{-1}p_{x_0}\\
+k_{X_{\rm ref}} &= -\PQP^{-1}p_{X_{\rm ref}}\\
+k_{U_{\rm ref}} &= -\PQP^{-1}p_{U_{\rm ref}}\\
+k_{\baru} &= -\PQP^{-1}p_{\baru}.
 \end{align}
+\end{subequations}
+Thus, the control law is a simple linear function of $x_0$, $X_{\rm ref}$, $U_{\rm ref}$, and $u_{-1}$.
 \end{document} 
 
