@@ -43,13 +43,16 @@
 \maketitle
 
 \section{Mathematical formulation}
-Let us consider a discrete-time linear dynamical system with $\nin$ inputs and $\nx$ states:
+
+\subsection{Dynamical system}
+We consider a linear, discrete-time dynamical system with $\nin$ inputs and $\nx$ states:
 \begin{align}
  x_{k+1} = A x_{k} + B u_{k},
 \end{align}
 with $A \in \mathbb{R}^{\nx \times \nx}$ and $B \in \mathbb{R}^{\nx \times \nin}$.
 
-The MPC problem solved by pyMPC is:
+\subsection{MPC cost function}
+The Model Predictive Control (MPC) problem solved by pyMPC is:
 \begin{subequations}
 \label{eq:MPC}
 \begin{align}
@@ -332,7 +335,7 @@ u_{-1} +\Delta u_{\rm max}\\
 \end{bmatrix}
 \end{equation}
 
-\subsection{Slack variables}
+\subsection{Soft constraints}
 Bounds on $x$ may result in an problem unfeasible! A common solution
 is to transform the hard constraints in $x$ into soft constraints by means of  \emph{slack variables} $\varepsvec$. 
 In the current implementation, there are as many slack variables as state variables, i.e. $\varepsvec \in \mathbb{R}^{\Np\nx \times 1}$.
