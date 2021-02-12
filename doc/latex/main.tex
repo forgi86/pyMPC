@@ -528,21 +528,21 @@ Summing up and expanding terms:
 Neglecting constant terms and collecting:
 \begin{multline}
  J = C + \frac{1}{2} \varuvec^\top \overbrace{\big(\mathcal{B}^\top \mathcal{Q}_x \mathcal{B} + \mathcal{Q}_u + \mathcal{Q}_{\Delta u}\big)} ^{=\PQP}\varuvec + \\
- \overbrace{\bigg [(\mathcal{A}x_o - X_{\rm ref})^\top \mathcal{Q}_x \mathcal{B} -{U_{\rm ref}}^\top\mathcal{Q}_u -
+ \overbrace{\bigg [(\mathcal{A}x_o - \varxvec_{\rm ref})^\top \mathcal{Q}_x \mathcal{B} -{\varuvec_{\rm ref}}^\top\mathcal{Q}_u -
  \begin{bmatrix}
   {\baru}^\top Q_{\Delta u} & 0 & \dots  & 0
  \end{bmatrix}\bigg)}^{=\qQP^\top} \varuvec
 \end{multline}
 Thus, we have
 \begin{equation}
- \qQP = \mathcal{B}^\top \mathcal{Q}_x(\mathcal{A}x_0 - X_{\rm ref}) - \mathcal{Q}_uU_{\rm ref} + 
+ \qQP = \mathcal{B}^\top \mathcal{Q}_x(\mathcal{A}x_0 - \varxvec_{\rm ref}) - \mathcal{Q}_u\varuvec_{\rm ref} + 
   \begin{bmatrix}
  -Q_{\Delta u} \baru \\ 0 \\ \vdots \\0
  \end{bmatrix}
 \end{equation}
 expanding
 \begin{equation}
- \qQP = \overbrace{\mathcal{B}^\top \mathcal{Q}_x\mathcal{A}}^{=p_{x_0}}x_0  \;+\; \overbrace{-\mathcal{B}^\top \mathcal{Q}_x}^{p_{X_{\rm ref}}}X_{\rm ref}\;+\; \overbrace{-\mathcal{Q}_u}^{=p_{U_{\rm ref}}}U_{\rm ref} + 
+ \qQP = \overbrace{\mathcal{B}^\top \mathcal{Q}_x\mathcal{A}}^{=p_{x_0}}x_0  \;+\; \overbrace{-\mathcal{B}^\top \mathcal{Q}_x}^{p_{\varxvec_{\rm ref}}}\varxvec_{\rm ref}\;+\; \overbrace{-\mathcal{Q}_u}^{=p_{\varuvec_{\rm ref}}}\varuvec_{\rm ref} + 
 \overbrace{
   \begin{bmatrix}
  -Q_{\Delta u} \\ 0 \\ \vdots \\0
@@ -563,11 +563,11 @@ with:
 \begin{subequations}
 \begin{align}
 k_{x_0} &= -\PQP^{-1}p_{x_0}\\
-k_{X_{\rm ref}} &= -\PQP^{-1}p_{X_{\rm ref}}\\
-k_{U_{\rm ref}} &= -\PQP^{-1}p_{U_{\rm ref}}\\
+k_{X_{\rm ref}} &= -\PQP^{-1}p_{\varxvec_{\rm ref}}\\
+k_{U_{\rm ref}} &= -\PQP^{-1}p_{\varuvec_{\rm ref}}\\
 k_{\baru} &= -\PQP^{-1}p_{\baru}.
 \end{align}
 \end{subequations}
-Thus, the control law is a simple linear function of $x_0$, $X_{\rm ref}$, $U_{\rm ref}$, and $u_{-1}$.
+Thus, the control law is a simple linear function of $x_0$, $\varxvec_{\rm ref}$, $\varuvec_{\rm ref}$, and $u_{-1}$.
 \end{document} 
 
