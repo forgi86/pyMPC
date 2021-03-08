@@ -47,6 +47,8 @@ class MPCController:
              Input value assumed at time instant -1. If None, it is set to uref.
     Qx : 2D array_like
          State weight matrix. If None, it is set to eye(nx).
+    QxN : 2D array_like
+         State weight matrix for the last state. If None, it is set to eye(nx).
     Qu : 2D array_like
          Input weight matrix. If None, it is set to zeros((nu,nu)).
     QDu : 2D array_like

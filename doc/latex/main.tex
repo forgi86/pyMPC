@@ -16,7 +16,7 @@
 \newcommand{\uQP}{u}
 \newcommand{\AQP}{\mathbf{A}}
 \newcommand{\PQP}{\mathbf{P}}
-\newcommand{\qQP}{\mathbf{q}}
+\newcommand{\qQP}{\mathbf{p}}
 \newcommand{\xQP}{\mathbf{z}}
 
 \newcommand{\MPC}{\mathrm{MPC}}
@@ -33,6 +33,7 @@
 \newcommand{\Np}{{N_p}}
 \newcommand{\Nc}{{N_c}}
 \newcommand{\blkdiag}{\text{blkdiag}}
+\newcommand{\kron}{\text{kron}}
 \newcommand{\baru}{u_{-1}}
 
 \begin{document}
@@ -77,35 +78,32 @@ The Model Predictive Control (MPC) problem solved by pyMPC is:
 %\begin{bmatrix}u_0 & u_1 & \dots & u_{\Np-1}\end{bmatrix}.
 \end{align}
 
-According to the solution strategy, the elements of the state sequence:
+According to the numerical solution strategy, the elements of the state sequence:
 \begin{equation}
   \varx  = \left\{ x_0,\ x_1,\ \dots, \ x_{\Np} \right \}\\ 
 \end{equation}
-may be either included as optimization variables (sparse implementation), or eliminated (dense implementation).
+may be either included as optimization variables of the Quadratic Programming (QP) problem (in the sparse formulation), or eliminated (in the condensed formulation). The current implementation of pyMPC is based on the sparse formulation and utilizes the QP solver OSQP. 
 
 \subsection{Notation}
-The column vector $\varuvec \in \mathbb{R}^{\Np \nin \times 1}$ contains all the stacked entries of the input sequence $U$:
-\begin{equation}
- \varuvec^\top = \begin{bmatrix} u_0^\top &u_1^\top &\dots& u_{\Np-1}^\top\end{bmatrix}^\top. 
-\end{equation}
-Similarly, the column vector $\varxvec \in \mathbb{R}^{\Np \nx \times 1}$ is defined as:
-\begin{equation}
- \varxvec^\top = \begin{bmatrix} x_0^\top &x_1^\top &\dots& x_{\Np}^\top\end{bmatrix}^\top,
-\end{equation}
-the column vector $\varxvec_{\rm ref} \in \mathbb{R}^{\Np \nx \times 1}$ is defined as:
-\begin{equation}
- {\varxvec}_{\rm ref}^\top = \begin{bmatrix} x_{\rm ref}^\top &x_{\rm ref}^\top &\dots& x_{\rm ref}^\top\end{bmatrix}^\top,
-\end{equation}
-and finally the column vector $\varuvec_{\rm ref}$ is defined as:
-\begin{equation}
- {\varuvec}_{\rm ref}^\top = \begin{bmatrix} u_{\rm ref}^\top &u_{\rm ref}^\top &\dots& u_{\rm ref}^\top\end{bmatrix}^\top.
-\end{equation}
-
-Note that we consider a constant state reference $x_{\rm ref}$ over the prediction horizon for notation simplicity. The extension to a varying reference
-is straightforward (and actually implemented in pyMPC).
+Bolt symbols are used to denote column vectors containing the stacked elements of quantities of interest over the prediction horizon:
+\begin{subequations}
+\begin{align}
+ \varuvec^\top &= \begin{bmatrix} u_0^\top &u_1^\top &\dots& u_{\Np-1}^\top\end{bmatrix}^\top,\\
+ \varxvec^\top &= \begin{bmatrix} x_0^\top &x_1^\top &\dots& x_{\Np}^\top\end{bmatrix}^\top,\\
+ {\varxvec}_{\rm ref}^\top &= \begin{bmatrix} x_{\rm ref}^\top &x_{\rm ref}^\top &\dots& x_{\rm ref}^\top\end{bmatrix}^\top,\\
+ {\varuvec}_{\rm ref}^\top &= \begin{bmatrix} u_{\rm ref}^\top &u_{\rm ref}^\top &\dots& u_{\rm ref}^\top\end{bmatrix}^\top,\\
+ {\varxvec}_{\rm min}^\top &= \begin{bmatrix} x_{\rm min}^\top &x_{\rm min}^\top &\dots& x_{\rm min}^\top\end{bmatrix}^\top,\\
+ {\varxvec}_{\rm max}^\top &= \begin{bmatrix} x_{\rm max}^\top &x_{\rm max}^\top &\dots& x_{\rm max}^\top\end{bmatrix}^\top,\\
+ {\varuvec}_{\rm min}^\top &= \begin{bmatrix} u_{\rm min}^\top &u_{\rm min}^\top &\dots& u_{\rm min}^\top\end{bmatrix}^\top,\\
+ {\varuvec}_{\rm max}^\top &= \begin{bmatrix} u_{\rm max}^\top &u_{\rm max}^\top &\dots& u_{\rm max}^\top\end{bmatrix}^\top,\\
+ \Delta{\varuvec}_{\rm min}^\top &= \begin{bmatrix} \Delta u_{\rm min}^\top &\Delta u_{\rm min}^\top &\dots& \Delta u_{\rm min}^\top\end{bmatrix}^\top,\\
+ \Delta{\varuvec}_{\rm max}^\top &= \begin{bmatrix} \Delta u_{\rm max}^\top &\Delta u_{\rm max}^\top &\dots& \Delta u_{\rm max}^\top\end{bmatrix}^\top.
+ \end{align}
+\end{subequations}
+Note that we consider constant references and constraints over the prediction horizon for notation simplicity. The extension to time-varying references and constraints is straightforward.
  
 \subsection{Receding horizon implementation}
-In a typical implementation, the MPC input is applied in \emph{receding horizon}. At each time step $i$, the problem \eqref{eq:MPC} is solved with $x_0=x[i],\;u_{-1}=u[{i-1}]$ and an optimal input sequence $u_{0},\dots,u_{\Np}$ is obtained. The first element of this sequence $u_0$ is the control input that is actually applied at time instant $i$. At time instant $i+1$, a new state $x[i+1]$ is measured (or estimated), and the process is iterated. 
+In a typical implementation, the MPC input is applied in \emph{receding horizon}. At each time step $i$, problem \eqref{eq:MPC} is solved with $x_0=x[i],\;u_{-1}=u[{i-1}]$ and an optimal input sequence $u_{0},\dots,u_{\Np}$ is obtained. The first element of this sequence $u_0$ is the control input that is actually applied at time instant $i$. At time instant $i+1$, a new state $x[i+1]$ is measured (or estimated), and the process is iterated. 
 
 Thus, formally, the MPC control law is a (static) function of the current state and the previous input:
 \begin{equation}
@@ -115,21 +113,28 @@ Thus, formally, the MPC control law is a (static) function of the current state 
 Note that this function also depends on the references $x_{\rm ref}$ and $u_{\rm ref}$ and on the system matrices $A$ and $B$.
 
 \section{Quadratic Programming Formulation}
-The OSQP Quadratic Programming (QP) solver expects a problem with form: 
+%The OSQP Quadratic Programming (QP) solver expects a problem with form: 
+Available Quadratic Programming (QP) solvers such as OSQP and QPOases expect a problem having a standard form\footnote{The exact  formulation is solver-dependent, but the different formulations are substantially equivalent.} such as:
 \begin{subequations}
 \label{eq:QP}
 \begin{align}
  &\min \frac{1}{2} \xQP^\top \PQP \xQP +  \qQP^\top \xQP \\
  &\text{subject to} \nonumber \\
- &\lQP \leq \AQP \xQP \leq \uQP
+ &\lQP \leq \AQP \xQP \leq \uQP.
 \end{align}
 \end{subequations}
-To implement the MPC controller using the OSQP solver, we need to re-write the MPC optimization problem \eqref{eq:MPC} in form
+Thus, to implement the MPC controller using a standard QP solver, we need to re-write the MPC optimization problem \eqref{eq:MPC} in form
 \eqref{eq:QP}. 
 
-\section{Sparse Implementation}
-In the sparse implementation, the dynamic constraints given by the linear dynamics equations \eqref{eq:linear_dynamics} are included explicitly and 
-the state sequence $X$ is considered as an optimization variable, along with the input sequence $U$.
+\section{Sparse QP Formulation}
+\label{sec:sparse}
+In the \emph{sparse} QP formulation of the MPC problem, the decision variables to be optimized are both $\varuvec$ and $\varxvec$. The dynamic constraints given by the model equations \eqref{eq:linear_dynamics} are included explicitly as equality constraints on the state variables 
+$\varxvec$.
+
+The resulting QP problem is high-dimensional, sparse, and highly structured. 
+Certain QP solvers can take advantage of sparsity and structure of the QP problem and perform well with this formulation, despite its high dimensionality.
+%. Thus, in certain cases, the advantages of sparsity and structure 
+%, despite its high dimensionality.
 
 \subsection{Cost function}
 \subsubsection{Terms in $Q_x$ and $Q_{x_N}$}
@@ -145,16 +150,18 @@ By direct inspection, the non-constant terms of the cost function in $Q_x$ and $
   x_0 \\  x_1\\ \vdots\\  x_{\Np}
  \end{bmatrix} + \\
  +
+ \overbrace{
   \begin{bmatrix}
   -{x_{\rm ref}}^\top Q_x & -{x_{\rm ref}}^\top Q_x &\dots & -{x_{\rm ref}}^\top Q_{x_N}
  \end{bmatrix} 
+ }^{p_{Q_x}}
  \begin{bmatrix}
   x_0 \\ x_1 \\ \vdots \\ x_{\Np}
  \end{bmatrix}^\top.
  \end{multline}
  More compactly, this is equivalent to:
  \begin{equation}
-  J_{Q_x} = \frac{1}{2} \varxvec^\top \mathcal{Q}_x \varxvec - \varxvec_{\rm ref}^\top \mathcal{Q}_x \varxvec.
+  J_{Q_x} = \frac{1}{2} \varxvec^\top \mathcal{Q}_x \varxvec - \varxvec_{\rm ref}^\top \mathcal{Q}_x \varxvec = \frac{1}{2} \varxvec^\top \mathcal{Q}_x \varxvec + p_{Q_x}^\top \varxvec.
  \end{equation}
 
  \subsubsection{Terms in $Q_u$}
@@ -171,26 +178,32 @@ By direct inspection, the non-constant terms of the cost function in $Q_x$ and $
  \end{bmatrix}
   + \\
  +
+ \overbrace{
   \begin{bmatrix}
   -{u_{\rm ref}}^\top Q_u & -{u_{\rm ref}}^\top Q_u &\dots & -{u_{\rm ref}}^\top Q_u
  \end{bmatrix}
+ }^{p_{Q_u}}
  \begin{bmatrix}
   u_0 \\ u_1 \\ \vdots \\ u_{\Np-1}
  \end{bmatrix} 
  \end{multline}
  More compactly, this is equivalent to:
  \begin{equation}
-  J_{Q_u} = \frac{1}{2} \varuvec^\top \mathcal{Q}_u \varuvec - \varuvec_{\rm ref}^\top \mathcal{Q}_u \varuvec.
+  J_{Q_u} = \frac{1}{2} \varuvec^\top \mathcal{Q}_u \varuvec - \varuvec_{\rm ref}^\top \mathcal{Q}_u
+ \varuvec = \frac{1}{2} \varuvec^\top \mathcal{Q}_u \varuvec + p_{Q_u}
+ \varuvec 
+ .
  \end{equation}
 
   \subsubsection{Terms in $Q_{\Delta u}$}
- As for the terms in $Q_{\Delta u}$ we have instead:
+ As for the terms in $Q_{\Delta u}$, we have instead:
  \begin{small}
 \begin{multline}
  J_{\Delta u} = \frac{1}{2}
  \begin{bmatrix}
   u_0 & u_1 &\dots & u_{\Np-1}
  \end{bmatrix}^\top
+ \overbrace{
   \begin{bmatrix}
   2Q_{\Delta u} & -Q_{\Delta u} &0                  & \dots         & \dots  &   0\\
   -Q_{\Delta u} & 2Q_{\Delta u} &-Q_{\Delta u}      &0              & \dots  &   0\\
@@ -200,6 +213,7 @@ By direct inspection, the non-constant terms of the cost function in $Q_x$ and $
   0             & 0             &0                  &-Q_{\Delta u}  & 2Q_{\Delta u} &-Q_{\Delta u}\\  
   0             & 0             &0                  &0              & -Q_{\Delta u} &Q_{\Delta u}\\  
   \end{bmatrix}
+  }^{\mathcal{Q}_{\Delta u}}
  \begin{bmatrix}
   u_0 \\  u_1\\ \vdots\\  u_{\Np-1}
  \end{bmatrix}^\top \\
@@ -213,9 +227,11 @@ By direct inspection, the non-constant terms of the cost function in $Q_x$ and $
  It is convenient to write the above expression using stacked vectors only:
 \begin{equation}
  J_{\Delta u} = \frac{1}{2} \varuvec^\top \mathcal{Q}_{\Delta u} \varuvec +   
+ \overbrace{
  \begin{bmatrix}
   -{\baru}^\top Q_{\Delta u} & 0 & \dots  & 0
- \end{bmatrix} \varuvec
+ \end{bmatrix}}^{p_{Q_{\Delta u}}}
+ \varuvec
 \end{equation}
  
 \subsection{Constraints}
@@ -284,13 +300,13 @@ These constraints can be written as
   \varxvec\\
   \varuvec
  \end{bmatrix}
- = \mathcal{C}.
+ = -\mathcal{C}.
 \end{equation}
 \subsubsection{Variable bounds: $x$ and $u$}
 The bounds on $x$ and $u$ are readily implemented as:
 \begin{equation}
 \begin{bmatrix}
- x_{\rm min}\\u_{\rm min}
+ \varxvec_{\rm min}\\\varuvec_{\rm min}
 \end{bmatrix}
 \leq
 \begin{bmatrix}
@@ -302,10 +318,11 @@ The bounds on $x$ and $u$ are readily implemented as:
 \end{bmatrix}
 \leq
 \begin{bmatrix}
- x_{\rm max}\\u_{\rm max}
+ \varxvec_{\rm max}\\ \varuvec_{\rm max}
 \end{bmatrix}.
 \end{equation}
-\subsubsection{Variable bounds: $\Delta u$}
+\subsubsection{Input increment bound: $\Delta u$}
+The input increment bound for all the time steps may be written as:
 \begin{equation}
 \begin{bmatrix}
 u_{-1} +\Delta u_{\rm min}\\
@@ -313,6 +330,7 @@ u_{-1} +\Delta u_{\rm min}\\
 \vdots\\
 \Delta u_{\rm min}\\
 \end{bmatrix} \leq 
+\overbrace{
 \begin{bmatrix}
   I  &  0 & \dots & \dots  & 0 & 0\\
  -I  &  I &  0    & \dots  & 0 & 0\\
@@ -320,6 +338,7 @@ u_{-1} +\Delta u_{\rm min}\\
 	\vdots\\
 	0  &  0 & \dots & 0      &-I & I\\    
 \end{bmatrix}
+}^{={\Delta}}
 \begin{bmatrix}
 u_0\\
 u_1\\
@@ -331,12 +350,13 @@ u_{\Nc-1}\\
 u_{-1} +\Delta u_{\rm max}\\
 \Delta u_{\rm max}\\
 \vdots\\
-\Delta u_{\rm max}\\
+\Delta u_{\rm max},\\
 \end{bmatrix}
 \end{equation}
+where we have defined the matrix $\Delta$ performing the finite difference operation on $\varuvec$.
 
 \subsection{Soft constraints}
-Bounds on $x$ may result in an problem unfeasible! A common solution
+Bounds on $x$ may result in an unfeasible QP problem! A common solution
 is to transform the hard constraints in $x$ into soft constraints by means of  \emph{slack variables} $\varepsvec$. 
 In the current implementation, there are as many slack variables as state variables, i.e. $\varepsvec \in \mathbb{R}^{\Np\nx \times 1}$.
 We use the constraint:
@@ -450,10 +470,70 @@ The contributions $J_{Q_u}$ of the cost function also changes:
  \end{multline}
 Instead, $J_\Delta u$ does not change (because the input is constant for $k \geq N_c$!
 
+\subsection{Overall formulation}
+The overall sparse QP formulation is thus%may %OSQP Quadratic Programming (QP) solver expects a problem with form: 
+\begin{subequations}
+%\label{eq:QP}
+\begin{align}
+ &\min \frac{1}{2} \xQP^\top \PQP \xQP +  \qQP^\top \xQP \\
+ &\text{subject to} \nonumber \\
+ &\lQP \leq \AQP \xQP \leq \uQP,
+\end{align}
+\end{subequations}
+where 
+\begin{subequations}
+\begin{align}
+\xQP^\top &= \begin{bmatrix}\varxvec^\top \; \varuvec^\top\; \varepsvec^\top \end{bmatrix}\\
+\PQP &= \blkdiag(\mathcal{Q}_x, \mathcal{Q}_u + \mathcal{Q}_{\Delta u}, \mathcal{Q}_\slack) \\
+\qQP^\top &= \begin{bmatrix}p_{Q_x}^\top, p_{Q_u}^\top + p_{\Delta_u}^\top, 0 \end{bmatrix} \label{pQPsparse} \\
+\AQP  &=  
+ \begin{bmatrix}
+  (\mathcal{A}-I) & \mathcal{B} & 0 \\
+  I & 0 & I\\
+  0 & I & 0\\
+  0 & \Delta & 0 \label{eq:AQPsparse}\\
+ \end{bmatrix}\\
+\lQP^\top &= \begin{bmatrix}-\mathcal{C}^\top, \varxvec_{\min}^\top, \varuvec_{\min}^\top, \Delta{\varuvec}_{\rm min}^\top \end{bmatrix}^\top \label{lQPsparse}\\
+\uQP^\top &= \begin{bmatrix}-\mathcal{C}^\top, \varxvec_{\max}^\top, \varuvec_{\max}^\top, \Delta{\varuvec}_{\rm max}^\top \end{bmatrix}^\top \label{uQPsparse}.
+\end{align}
+\end{subequations}
 
-\section{Dense Implementation}
-In the dense implementation, the elements of the input sequence $U$ are the only optimization variables.
-The state variables are eliminated using the so-called Lagrange equations:
+\subsection{Implementation details}
+\paragraph{Exploiting sparsity}
+The sparse QP formulation of MPC may be convenient when it is used in combination with a QP solver that is able to 
+exploit sparsity and structure of the problem. The OSQP solver seems to be a good candidate. 
+The sparse QP matrices have to be implemented in a sparse format (e.g., using the
+\texttt{scipy.sparse} API in Python).
+\paragraph{Minimal update of the QP matrices}
+The terms $\mathcal{C}$ in \eqref{lQPsparse}, \eqref{uQPsparse} and $p_{\Delta u}$ in \eqref{pQPsparse} have to be modified at each iterationas as they depend on the initial state $x_0$ and the previously
+applied input $u_{-1}$, respectively. In the case of time-varying system matrices $A_d$ and $B_d$, the terms $\mathcal{A}$ and 
+$\mathcal{B}$ in \eqref{eq:AQPsparse} also change and have to be updated. All the other terms do not change for the different iterations
+of the MPC. It is important to perform a minimal on-line update of the system matrices to save computational time.
+\paragraph{Kronecker product}
+Several matrices appearing in the expressions above may be more easily implemented using the \emph{kronecker product}.
+For instance, the $\mathcal{A}$ is equivalent to:
+\begin{equation}
+\mathcal{A} = \kron \left (
+ \begin{bmatrix}
+ 0      &0      &\dots  &0\\
+ 1      &0      &\dots  & 0\\
+ 0      &1     &\dots  &0\\
+ \vdots &0      &\ddots & 0\\
+ 0      &0      &\dots  &1
+\end{bmatrix}, A_d \right)
+\end{equation}
+In Python code, we obtain the sparse matrix $\mathcal{A}$ with the syntax:
+\begin{verbatim}
+ A_cal = sparse.kron(sparse.eye(N, k=-1), Ad).
+\end{verbatim}
+Similarly, we would obtain the dense version of $\mathcal{A}$ with the syntax:
+\begin{verbatim}
+ A_cal = np.kron(np.eye(N, k=-1), Ad).
+\end{verbatim}
+
+
+\section{Condensed QP formulation}
+In the \emph{condensed} QP formulation, the input sequence vector $\varuvec$ are the only optimization variables. The state variables are eliminated by applying the so-called Lagrange equations:
 \begin{equation}
 \begin{bmatrix}
 x_1\\
@@ -493,10 +573,15 @@ In vector notation, this is simply:
 \begin{equation}
  \varxvec = \mathcal{A}x_0 + \mathcal{B} \varuvec
 \end{equation}
+The resulting QP problem is lower-dimensional than the one obtained with the sparse formulation (Section \ref{sec:sparse}), as $\varxvec$ is no longer a free decision variable. However, sparsity and structural properties of the resulting QP problem are generally lost. 
+%For certain MPC problems and QP solvers, the benefit of having a smaller 
+%Certain QP solvers are more efficient 
+%when used in combination with a 
 
-
+\subsection{Cost function}
 The elements of the cost function may be written compactly as:
 \begin{equation}
+\label{eq:JQx_dense}
  J_{Q_x} = \frac{1}{2} \left(\mathcal{A} x_0 + \mathcal{B} \varuvec - \varxvec_{\rm ref}\right)^\top \mathcal{Q}_x \left(\mathcal{A} x_0 + \mathcal{B} \varuvec - \varxvec_{\rm ref}\right)
 \end{equation}
 
@@ -550,12 +635,55 @@ expanding
 }^{=p_{\baru}}
 \baru
 \end{equation}
-\subsection{Unconstrained case}
-For an unconstrained problem, the optimal value of $\varuvec$ is:
+
+\subsection{Control horizon}
+In this case, we define:
 \begin{equation}
- \varuvec^{\rm opt} = -\PQP^{-1}\qQP
+\varuvec^\top = \begin{bmatrix} u_0^\top &u_1^\top &\dots& u_{\Nc-1}^\top\end{bmatrix}^\top.
 \end{equation}
-Expanding, we obtain:
+
+We can exploit the equation:
+\begin{equation}
+ \begin{bmatrix}
+  u_0 \\ u_1 \\ u_2 \\ \vdots\\ u_{\Np-1}
+ \end{bmatrix} = 
+ \overbrace{
+ \begin{bmatrix}
+ I      &0      &\dots  & 0\\
+ 0      &I      &\dots  &0\\
+ \vdots &0      &\ddots & 0\\
+ 0      &0      &\dots  &I\\
+ 0      &0      &\dots  &\vdots\\
+ 0      &0      &\dots  &I\\
+\end{bmatrix}
+}^{=S}
+ \begin{bmatrix}
+  u_0 \\ u_1 \\ u_2 \\ \vdots\\ u_{\Nc-1}
+ \end{bmatrix} 
+ = S \varuvec
+\end{equation}
+Then, the state variables satisfy:
+\begin{equation}
+ \varxvec = \mathcal{A}x_0 + \mathcal{B}S \varuvec.
+\end{equation}
+Then the cost function term $J_{Q_x}$ can then be computed as in \eqref{eq:JQx_dense}, by re-defining $\mathcal{B} = S\mathcal{B}$.
+[And also adjusting the term $J_{Q_u}$, if present...]
+
+\subsection{Implementation details}
+By adopting the condensed MPC formulation, we obtain a lower-dimensional QP problem as the state variables are eliminated. 
+However, the sparsity properties of the resulting QP problem are generally lost. In particular, the matrix $\PQP$ is in general 
+fully populated. 
+
+In practice, we expect good performance from the condensed formulation for relatively small MPC problems, and using solvers optimized 
+for dense QP problems. A good candidate may be QPOases.
+
+\subsection{The unconstrained case}
+By dropping the constraints on $u$ $\Delta u$, and $x$, the condensed formulation allows writing the solution of the MPC problem
+in closed-form. In fact, for an unconstrained QP problem, the optimal value of $\varuvec$ is:
+\begin{equation}
+ \varuvec^{\rm opt} = -\PQP^{-1}\qQP.
+\end{equation}
+Expanding, we obtain in our case:
 \begin{equation}
  \varuvec^{\rm opt} = k_{x_0} x_0 + k_{\varxvec_{\rm ref}}\varxvec_{\rm ref} + k_{\varuvec_{\rm ref}} \varuvec_{\rm ref} k_{\baru} \baru
 \end{equation}
