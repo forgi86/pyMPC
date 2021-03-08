@@ -666,8 +666,9 @@ Then, the state variables satisfy:
 \begin{equation}
  \varxvec = \mathcal{A}x_0 + \mathcal{B}S \varuvec.
 \end{equation}
-Then the cost function term $J_{Q_x}$ can then be computed as in \eqref{eq:JQx_dense}, by re-defining $\mathcal{B} = S\mathcal{B}$.
-[And also adjusting the term $J_{Q_u}$, if present...]
+Then, the cost function term $J_{Q_x}$ can then be computed as in \eqref{eq:JQx_dense}, by re-defining $\mathcal{B} = S\mathcal{B}$.
+The term $J_{Q_u}$ should also be adjusted by re-defining $\mathcal{Q}_u = \blkdiag\left (Q_u, Q_u, \dots (\Np - \Nc + 1)Q_u \right)$, as the last element of the input sequence in the control horizon has to be weighted for $(\Np - \Nc + 1)$ time steps.
+%[And also adjusting the term $J_{Q_u}$, if present...]
 
 \subsection{Implementation details}
 By adopting the condensed MPC formulation, we obtain a lower-dimensional QP problem as the state variables are eliminated. 
@@ -681,6 +682,7 @@ for dense QP problems. A good candidate may be QPOases.
 By dropping the constraints on $u$ $\Delta u$, and $x$, the condensed formulation allows writing the solution of the MPC problem
 in closed-form. In fact, for an unconstrained QP problem, the optimal value of $\varuvec$ is:
 \begin{equation}
+ \label{eq:QPclosedform}
  \varuvec^{\rm opt} = -\PQP^{-1}\qQP.
 \end{equation}
 Expanding, we obtain in our case:
@@ -690,6 +692,7 @@ Expanding, we obtain in our case:
 with:
 \begin{subequations}
 \begin{align}
+\label{eq:LMPC}
 k_{x_0} &= -\PQP^{-1}p_{x_0}\\
 k_{\varxvec_{\rm ref}} &= -\PQP^{-1}p_{\varxvec_{\rm ref}}\\
 k_{\varuvec_{\rm ref}} &= -\PQP^{-1}p_{\varuvec_{\rm ref}}\\
@@ -697,5 +700,8 @@ k_{\baru} &= -\PQP^{-1}p_{\baru}.
 \end{align}
 \end{subequations}
 Thus, the control law is a simple linear function of $x_0$, $\varxvec_{\rm ref}$, $\varuvec_{\rm ref}$, and $u_{-1}$.
+
+
+For constant system matrices $A$ and $B$, the QP matrices $\PQP$ and $\qQP$ are also fixed. It is then convenient to compute the inverse of $\PQP$ off-line and use formulas $\eqref{eq:LMPC}$ for real-time computations. In the case of time-varying system matrices, the QP matrices change at each iteration of MPC. Then, it is perhaps more efficient and numerically stable to obtain the solution of \eqref{eq:QPclosedform} by using standard routines for solving linear systems, instead of computing the inverse of $\PQP$ on-line.
 \end{document} 
 
