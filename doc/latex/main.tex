@@ -58,8 +58,7 @@ The Model Predictive Control (MPC) problem solved by pyMPC is:
 \label{eq:MPC}
 \begin{align}
   &\arg \min_{\varu} 
-  \overbrace{\frac{1}{2}\big(x_N - x_{\rm ref}\big)^\top \QxN \big(x_N - x_{\rm ref}\big)}^{=J_{Q_{x_N}}} + 
-  \overbrace{\frac{1}{2}\sum_{k=0}^{\Np-1} \big(x_k - x_{\rm ref}\big)^\top \Qx\big(x_k - x_{\rm ref}\big)}^{J_{Q_x}}+ \nonumber \\
+  \overbrace{\frac{1}{2}\sum_{k=1}^{\Np} \big(x_k - x_{\rm ref}\big)^\top \Qx\big(x_k - x_{\rm ref}\big)}^{J_{Q_x}}+ \nonumber \\
   &  + 
     \overbrace{\frac{1}{2}\sum_{k=0}^{\Np-1} \big(u_k - u_{\rm ref}\big)^\top \Qu \big(u_k - u_{\rm ref}\big)}^{J_u}
     +  
@@ -80,7 +79,7 @@ The Model Predictive Control (MPC) problem solved by pyMPC is:
 
 According to the numerical solution strategy, the elements of the state sequence:
 \begin{equation}
-  \varx  = \left\{ x_0,\ x_1,\ \dots, \ x_{\Np} \right \}\\ 
+  \varx  = \left\{ x_1,\ x_2,\ \dots, \ x_{\Np} \right \}\\ 
 \end{equation}
 may be either included as optimization variables of the Quadratic Programming (QP) problem (in the sparse formulation), or eliminated (in the condensed formulation). The current implementation of pyMPC is based on the sparse formulation and utilizes the QP solver OSQP. 
 
@@ -138,21 +137,21 @@ Certain QP solvers can take advantage of sparsity and structure of the QP proble
 
 \subsection{Cost function}
 \subsubsection{Terms in $Q_x$ and $Q_{x_N}$}
-By direct inspection, the non-constant terms of the cost function in $Q_x$ and $Q_{x_N}$ are:
+By direct inspection, the non-constant terms of the cost function in $Q_x$ are:
 \begin{multline}
 \label{eq:J_Qx}
  J_{Q_x} = \frac{1}{2}
  \begin{bmatrix}
   x_0^\top & x_1^\top &\dots & x_{\Np}^\top
  \end{bmatrix}^\top
- \overbrace{\blkdiag(Q_x, Q_x, \dots, Q_{x_N})}^{=\mathcal{Q}_x}
+ \overbrace{\blkdiag(Q_x, Q_x, \dots, Q_x)}^{=\mathcal{Q}_x}
  \begin{bmatrix}
   x_0 \\  x_1\\ \vdots\\  x_{\Np}
  \end{bmatrix} + \\
  +
  \overbrace{
   \begin{bmatrix}
-  -{x_{\rm ref}}^\top Q_x & -{x_{\rm ref}}^\top Q_x &\dots & -{x_{\rm ref}}^\top Q_{x_N}
+  -{x_{\rm ref}}^\top Q_x & -{x_{\rm ref}}^\top Q_x &\dots & -{x_{\rm ref}}^\top Q_x
  \end{bmatrix} 
  }^{p_{Q_x}}
  \begin{bmatrix}
@@ -241,8 +240,8 @@ be written in matrix form as:
 \begin{small}
 \begin{equation}
 \begin{bmatrix}
-x_0\\
 x_1\\
+x_2\\
 \vdots\\
 x_{\Np-1}\\
 x_{\Np}
@@ -257,19 +256,19 @@ x_{\Np}
 \end{bmatrix}
 }^{=\mathcal{A}}
 \begin{bmatrix}
-x_0\\
 x_1\\
+x_2\\
 \vdots\\
-x_{\Np-1}\\
-x_{\Np} 
+x_{\Np-2}\\
+x_{\Np-1} 
 \end{bmatrix} +
 \overbrace{
 \begin{bmatrix}
- 0      &0      &\dots  &0\\
- B_d    &0      &\dots  & 0\\
- 0      &B_d    &\dots  &0\\
- \vdots &0      &\ddots & 0\\
- 0      &0      &\dots  &B_d
+ B_d    &0      &\dots  &0        & 0\\
+ 0      &B_d    &\dots  &0        & 0\\
+ \vdots &0      &\ddots &0        & 0\\
+ \vdots &0      &0      &\ddots   & 0\\
+ 0      &0      &\dots  &0        &B_d
 \end{bmatrix}
 }^{=\mathcal{B}}
 \begin{bmatrix}
@@ -281,7 +280,7 @@ u_{\Np-1}
 \end{bmatrix} +
 \overbrace{
 \begin{bmatrix}
-\bar x\\
+A_d x_0\\
 0\\
 \vdots\\
 \vdots \\
@@ -395,8 +394,8 @@ Sometimes, we may want to use a control horizon $\Nc < \Np$ instead of the stand
 
 \begin{equation}
 \begin{bmatrix}
-x_0\\
 x_1\\
+x_2\\
 \vdots\\
 x_{\Np-1}\\
 x_{\Np}
@@ -414,12 +413,11 @@ x_{\Np}
 x_0\\
 x_1\\
 \vdots\\
-x_{\Np-1}\\
-x_{\Np} 
+x_{\Np-2}\\
+x_{\Np-1} 
 \end{bmatrix} +
 \overbrace{
 \begin{bmatrix}
- 0      &0      &\dots  &0\\
  B_d    &0      &\dots  & 0\\
  0      &B_d    &\dots  &0\\
  \vdots &0      &\ddots & 0\\
@@ -429,7 +427,6 @@ x_{\Np}
 \end{bmatrix}
 }^{=\mathbb B}
 \begin{bmatrix}
-u_0\\
 u_1\\
 u_2\\
 \vdots\\
@@ -439,7 +436,7 @@ u_{\Nc-1}
 \end{bmatrix} +
 \overbrace{
 \begin{bmatrix}
-\bar x\\
+A_d\bar x\\
 0\\
 \vdots\\
 \vdots \\
