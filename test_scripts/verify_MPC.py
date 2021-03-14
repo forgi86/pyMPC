@@ -114,7 +114,7 @@ if __name__ == '__main__':
     eps_seq = info['eps_seq']
     u_seq = info['u_seq']
     eps_recalc_seq = np.zeros(eps_seq.shape)
-    u_old = K.uminus1_rh
+    u_old = K.u_minus1_rh
     x_new_dyn = x_seq[0,:]
     J_recalc_x = 0
     J_recalc_u = 0
@@ -130,9 +130,9 @@ if __name__ == '__main__':
         else:
             u_i = u_seq[Nc-1,:]
         eps_i_recalc = x_new_dyn - x_i # eps[i]
-        J_recalc_x += 1/2*(x_i -xref).dot(K.Qx.dot((x_i -xref)))
-        J_recalc_u += 1/2*(u_i -uref).dot(K.Qu.dot((u_i -uref)))
-        J_recalc_Du += 1/2*(u_i -u_old).dot(K.QDu.dot((u_i -u_old)))
+        J_recalc_x += 1/2*(x_i -xref).dot(K.Q_x.dot((x_i - xref)))
+        J_recalc_u += 1/2*(u_i -uref).dot(K.Q_u.dot((u_i - uref)))
+        J_recalc_Du += 1/2*(u_i -u_old).dot(K.Q_du.dot((u_i - u_old)))
         J_recalc_eps += 1/2*(eps_i_recalc).dot(K.Qeps.dot((eps_i_recalc)))
         x_new_dyn = K.Ad.dot(x_i) + K.Bd.dot(u_i)
         u_old = u_i

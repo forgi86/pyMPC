@@ -131,7 +131,7 @@ if __name__ == '__main__':
         if run_MPC:
             xref = r_fun(t_step)  # reference state
             xref_vec[idx_MPC,:] = xref
-            K.update(system_dyn.y, uMPC, xref=xref) # update with measurement
+            K.update(system_dyn.y, uMPC, x_ref=xref) # update with measurement
             uMPC = K.output() # MPC step (u_k value)
             u_vec[idx_MPC, :] = uMPC
 

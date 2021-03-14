@@ -113,7 +113,7 @@ if __name__ == '__main__':
 
         # MPC update and step. Could be in just one function call
         xref = r_fun(t_step)  # reference state
-        K.update(system_dyn.y, uMPC, xref=xref) # update with measurement
+        K.update(system_dyn.y, uMPC, x_ref=xref) # update with measurement
         uMPC = K.output() # MPC step (u_k value)
         usim[i,:] = uMPC
 

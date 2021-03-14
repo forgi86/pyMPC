@@ -225,7 +225,7 @@ if __name__ == '__main__':
             KF.predict(u_MPC)    # \hat x[i+1|i]
             # MPC update
             #K.update(system_dyn.y, u_MPC, xref=xref_MPC) # update with measurement
-            K.update(KF.x, u_MPC, xref=xref_MPC)  # update with measurement
+            K.update(KF.x, u_MPC, x_ref=xref_MPC)  # update with measurement
             t_calc_vec[idx_MPC,:] = time.perf_counter() - time_calc_start
 
         # System simulation step at rate Ts_fast
