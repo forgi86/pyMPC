@@ -133,13 +133,13 @@ if __name__ == '__main__':
         J_recalc_x += 1/2*(x_i -xref).dot(K.Q_x.dot((x_i - xref)))
         J_recalc_u += 1/2*(u_i -uref).dot(K.Q_u.dot((u_i - uref)))
         J_recalc_Du += 1/2*(u_i -u_old).dot(K.Q_du.dot((u_i - u_old)))
-        J_recalc_eps += 1/2*(eps_i_recalc).dot(K.Qeps.dot((eps_i_recalc)))
+        J_recalc_eps += 1/2*(eps_i_recalc).dot(K.Q_eps.dot((eps_i_recalc)))
         x_new_dyn = K.Ad.dot(x_i) + K.Bd.dot(u_i)
         u_old = u_i
 
     x_i = x_seq[Np,:]
     eps_i_recalc = x_new_dyn - x_i
     J_recalc_x += 1/2*(x_i -xref).dot(K.QxN.dot((x_i -xref)))
-    J_recalc_eps += 1/2*(eps_i_recalc).dot(K.Qeps.dot((eps_i_recalc)))
+    J_recalc_eps += 1/2*(eps_i_recalc).dot(K.Q_eps.dot((eps_i_recalc)))
 
     J_recalc = J_recalc_x + J_recalc_u + J_recalc_Du + J_recalc_eps
