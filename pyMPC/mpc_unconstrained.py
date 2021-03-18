@@ -113,6 +113,10 @@ class MPCController:
         self.k_u_minus1 = None
         self.k_u_ref_all = None
 
+        # MPC solution
+        self.u_MPC = None
+        self.u_MPC_all = None
+
     def setup(self, solve=True):
         """ Set-up the QP problem.
 
@@ -131,10 +135,6 @@ class MPCController:
 
         self.x_0_rh = np.copy(self.x_0)
         self.u_minus1_rh = np.copy(self.u_minus1)
-
-        # MPC solution
-        self.u_MPC = None
-        self.u_MPC_all = None
 
         # From term Q_x
         self.A_lag, self.B_lag = lagrange_matrices(self.Ad, self.Bd, self.n_p, self.n_c)
@@ -262,7 +262,7 @@ if __name__ == '__main__':
     v_ref = 0.0
     x_ref = np.array([p_ref, v_ref]) # reference state
     u_ref = np.array([0.0])    # reference input
-    u_minus1 = np.array([0.0])  # input at time step negative one - used to penalize the first delta u at time instant 0. Could be the same as uref.
+    u_minus1 = np.array([0.0])
 
     # Objective function
     Q_x = np.diag([1.0, 0.1])    # Quadratic cost for states x0, x1, ..., x_N-1
@@ -283,7 +283,7 @@ if __name__ == '__main__':
 
     # Simulate in closed loop
     [nx, nu] = Bd.shape  # number of states and number or inputs
-    len_sim = 200  # simulation length (s)
+    len_sim = 40  # simulation length (s)
     n_sim = int(len_sim / Ts)  # simulation length(timesteps)
     x_sim = np.zeros((n_sim, nx))
     u_sim = np.zeros((n_sim, nu))

@@ -535,12 +535,12 @@ class MPCController:
         # - linear dynamics x_k+1 = Ax_k + Bu_k
         A_cal = sparse.kron(sparse.eye(n_p, k=-1), Ad)
 
-        iBu = sparse.eye(n_c)
+        s_B_cal = sparse.eye(n_c)
         if self.n_c < self.n_p:  # expand B matrix if n_c < Nu (see notes)
-            iBu = sparse.vstack([iBu,
+            s_B_cal = sparse.vstack([s_B_cal,
                                  sparse.hstack([sparse.csc_matrix((n_p - n_c, n_c - 1)), np.ones((n_p - n_c, 1))])
                                 ])
-        B_cal = sparse.kron(iBu, Bd)
+        B_cal = sparse.kron(s_B_cal, Bd)
 
         Aeq_dyn = sparse.hstack([A_cal - sparse.eye(self.n_p * self.n_x), B_cal])
 
@@ -556,8 +556,8 @@ class MPCController:
         Aineq_x = sparse.hstack([sparse.eye(n_p * n_x), sparse.csc_matrix((n_p*n_x, n_c*n_u))])
         if self.SOFT_ON:
             Aineq_x = sparse.hstack([Aineq_x, sparse.eye(n_eps)]) # For soft constraints slack variables
-        lineq_x = np.kron(np.ones(n_p), x_min) # lower bound of inequalities
-        uineq_x = np.kron(np.ones(n_p), x_max) # upper bound of inequalities
+        lineq_x = np.kron(np.ones(n_p), x_min)  # lower bound of inequalities
+        uineq_x = np.kron(np.ones(n_p), x_max)  # upper bound of inequalities
 
         Aineq_u = sparse.hstack([sparse.csc_matrix((n_c*n_u, n_p*n_x)), sparse.eye(n_c * n_u)])
         if self.SOFT_ON:
@@ -575,11 +575,11 @@ class MPCController:
         if self.SOFT_ON:
             Aineq_du = sparse.hstack([Aineq_du, sparse.csc_matrix((Aineq_du.shape[0], n_eps))])
 
-        uineq_du = np.kron(np.ones(n_c+1), du_max) #np.ones((n_c+1) * n_u)*du_max
+        uineq_du = np.kron(np.ones(n_c+1), du_max)
         uineq_du[0:n_u] += self.u_minus1[0:n_u]
 
-        lineq_du = np.kron(np.ones(n_c+1), du_min) #np.ones((n_c+1) * n_u)*du_min
-        lineq_du[0:n_u] += self.u_minus1[0:n_u] # works for nonscalar u?
+        lineq_du = np.kron(np.ones(n_c+1), du_min)
+        lineq_du[0:n_u] += self.u_minus1[0:n_u]
 
         A = sparse.vstack([Aeq_dyn, Aineq_x, Aineq_u, Aineq_du]).tocsc()
         l = np.hstack([leq_dyn, lineq_x, lineq_u, lineq_du])
@@ -598,8 +598,8 @@ class MPCController:
         self.u = u
 
         self.P_X = P_X
-        # Debug assignments
 
+        # Debug assignments
 #        self.P_U = P_U
 #        self.P_eps = P_eps
 #        self.Aineq_du = Aineq_du
