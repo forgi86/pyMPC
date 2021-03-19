@@ -131,6 +131,7 @@ class MPCController:
                 raise ValueError("xmin should be a vector of shape (nx,)!")
         else:
             self.x_min = -np.ones(self.n_x) * np.inf
+        self.x_min_all = np.kron(np.ones(self.n_p), self.x_min)
 
         if x_max is not None:
             if __is_vector__(x_max) and x_max.size == self.n_x:
@@ -139,6 +140,7 @@ class MPCController:
                 raise ValueError("xmax should be a vector of shape (nx,)!")
         else:
             self.x_max = np.ones(self.n_x) * np.inf
+        self.x_max_all = np.kron(np.ones(self.n_p), self.x_max)
 
         if u_min is not None:
             if __is_vector__(u_min) and u_min.size == self.n_u:
@@ -165,8 +167,8 @@ class MPCController:
 
         self.problem = None
         self.res = None
-        self.n_vars = self.n_u * self.n_c
-        self.n_cnst = 0
+        self.n_vars = None
+        self.n_cnst = None
 
         self.A_lag = None
         self.B_lag = None
@@ -184,6 +186,10 @@ class MPCController:
         self.P_u = None
         self.P_du = None
         self.p_du = None
+
+        self.A_cnst = None
+        self.lbA = None
+        self.ubA = None
 
     def setup(self, solve=True):
         """ Set-up the QP problem.
@@ -227,7 +233,21 @@ class MPCController:
         self.P_QP = self.P_x + self.P_u + self.P_du
         self.p_QP = self.p_x + self.p_u + self.p_du
 
+        # Constraints
+        A_cnst_1 = self.B_lag
+        A_cnst_2 = -self.B_lag
+
+        lbA_1 = self.x_min_all - self.A_lag.dot(self.x_0_rh)   # lower bound constraint
+        lbA_2 = -self.x_max_all + self.A_lag.dot(self.x_0_rh)  # upper bound constraint
+
+        self.A_cnst = np.r_[A_cnst_1, A_cnst_2]
+        self.lbA = np.r_[lbA_1, lbA_2]
+        self.ubA = np.inf*np.ones_like(self.lbA)
+
+        self.n_vars = self.n_u * self.n_c
+        self.n_cnst = 2 * self.n_x * self.n_p
         self.problem = SQProblem(self.n_vars, self.n_cnst)  # n_vars, n_cnst
+
         options = Options()
         options.setToMPC()
         #options.printLevel = PrintLevel.NONE
@@ -235,8 +255,8 @@ class MPCController:
 
         # solve_first
         nWSR = np.array([1000])
-#        self.problem.init(self.P_QP, self.p_QP, self.A_cnst, self.var_min_all, self.var_max_all, self.lbA, self.ubA, nWSR)
-        self.problem.init(self.P_QP, self.p_QP, None, self.u_min_all, self.u_max_all, None, None, nWSR)
+        self.problem.init(self.P_QP, self.p_QP, self.A_cnst, self.u_min_all, self.u_max_all, self.lbA, self.ubA, nWSR)
+        #self.problem.init(self.P_QP, self.p_QP, None, self.u_min_all, self.u_max_all, None, None, nWSR)
 
         if solve:
             self.solve()
@@ -282,14 +302,18 @@ class MPCController:
         self.P_QP = self.P_x + self.P_u + self.P_du
         self.p_QP = self.p_x + self.p_u + self.p_du
 
+        # constraints
+        lbA_1 = self.x_min_all - self.A_lag.dot(self.x_0_rh)   # lower bound constraint
+        lbA_2 = -self.x_max_all + self.A_lag.dot(self.x_0_rh)  # upper bound constraint
+        self.lbA = np.r_[lbA_1, lbA_2]
+        self.ubA = np.inf*np.ones_like(self.lbA)
+
         if solve:
             self.solve()
 
     def solve(self):
         nWSR = np.array([1000])
-        #self.problem.hotstart(self.P_QP, self.p_QP, self.A_cnst, self.var_min_all, self.var_max_all, self.lbA, self.ubA,
-        #                      nWSR)
-        self.problem.hotstart(self.P_QP, self.p_QP, None, self.u_min_all, self.u_max_all, None, None,
+        self.problem.hotstart(self.P_QP, self.p_QP, self.A_cnst, self.u_min_all, self.u_max_all, self.lbA, self.ubA,
                               nWSR)
 
         res = np.zeros(self.n_vars)  # to store the solution
@@ -334,15 +358,15 @@ if __name__ == '__main__':
     Q_du = 0.0 * np.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
 
     # Initial state
-    x_0 = np.array([0.1, 0.2])  # initial state
+    x_0 = np.array([0.0, 0.0])  # initial state
 
     # Prediction horizon
     n_p = 20
     n_c = 20
 
     # Constraints
-    x_min = np.array([-10, -10.0])
-    x_max = np.array([7.0, 10.0])
+    x_min = np.array([-10, -0.6])
+    x_max = np.array([7.0, 0.6])
 
     u_min = np.array([-1.2])
     u_max = np.array([1.2])
@@ -375,8 +399,8 @@ if __name__ == '__main__':
 
     time_sim = time.time() - time_start
 
-    fig, axes = plt.subplots(3,1, figsize=(10,10))
-    axes[0].plot(tsim, xsim[:,0], "k", label='p')
+    fig, axes = plt.subplots(3, 1, figsize=(10, 10))
+    axes[0].plot(tsim, xsim[:, 0], "k", label='p')
     axes[0].plot(tsim, x_ref[0] * np.ones(np.shape(tsim)), "r--", label="pref")
     axes[0].set_title("Position (m)")
 
@@ -384,7 +408,7 @@ if __name__ == '__main__':
     axes[1].plot(tsim, x_ref[1] * np.ones(np.shape(tsim)), "r--", label="vref")
     axes[1].set_title("Velocity (m/s)")
 
-    axes[2].plot(tsim, usim[:,0], label="u")
+    axes[2].plot(tsim, usim[:, 0], label="u")
     axes[2].plot(tsim, u_ref * np.ones(np.shape(tsim)), "r--", label="uref")
     axes[2].set_title("Force (N)")
 
