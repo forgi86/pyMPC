@@ -107,7 +107,6 @@ class MPCController:
 
         if u_minus1 is not None:
             self.u_minus1 = u_minus1
-
         else:
             self.u_minus1 = self.u_ref
 
@@ -164,6 +163,24 @@ class MPCController:
             self.u_max = np.ones(self.n_u) * np.inf
         self.u_max_all = np.kron(np.ones(self.n_c), self.u_max)
 
+        if du_min is not None:
+            if __is_vector__(du_min) and du_min.size == self.n_u:
+                self.du_min = du_min
+            else:
+                raise ValueError("Dumin should be a vector of shape (nu,)!")
+        else:
+            self.du_min = -np.ones(self.n_u) * np.inf
+        self.du_min_all = np.kron(np.ones(self.n_c), self.du_min)
+
+        if du_max is not None:
+            if __is_vector__(du_max) and du_max.size == self.n_u:
+                self.du_max = du_max
+            else:
+                raise ValueError("Dumax should be a vector of shape (nu,)!")
+        else:
+            self.du_max = np.ones(self.n_u) * np.inf
+        self.du_max_all = np.kron(np.ones(self.n_c), self.du_max)
+
         self.Q_eps = 1e4
 
         self.u_failure = self.u_ref  # value provided when the MPC solver fails.
@@ -200,15 +217,16 @@ class MPCController:
         self.lbA = None
         self.ubA = None
 
-        # cnst_name = ["x", "du"]
-        # cnst_size_val = np.array([
-        #     self.n_x * self.n_p,  # linear dynamics constraints
-        #     self.n_u * self.n_c   # interval constraints on Du
-        # ])
-        #
-        # cnst_idx = np.r_[0, np.cumsum(cnst_size_val)[:-1]]
-        # self.cnst_size = dict(zip(cnst_name, cnst_size_val))  # dictionary constraint name -> constraint size
-        # self.cnst_idx = dict(zip(cnst_name, cnst_idx))  # dictionary constraint name -> constraint idx
+        # Index of constraints
+        cnst_name = ["x", "du"]
+        cnst_size_val = np.array([
+            self.n_x * self.n_p,  # linear dynamics constraints
+            self.n_u * self.n_c   # interval constraints on Du
+        ])
+
+        cnst_idx = np.r_[0, np.cumsum(cnst_size_val)[:-1]]
+        self.cnst_size = dict(zip(cnst_name, cnst_size_val))  # dictionary constraint name -> constraint size
+        self.cnst_idx = dict(zip(cnst_name, cnst_idx))  # dictionary constraint name -> constraint idx
 
     def setup(self, solve=True):
         """ Set-up the QP problem.
@@ -262,30 +280,40 @@ class MPCController:
             self.p_QP = np.r_[self.p_QP, self.Q_eps]
 
         # Constraints
+        
+        # optimization variable constraints
+        self.var_min_all = self.u_min_all
+        self.var_max_all = self.u_max_all
         if self.SOFT_ON:
-            self.var_min_all = np.r_[self.u_min_all, np.zeros(self.n_slack)]
-            self.var_max_all = np.r_[self.u_max_all, np.inf * np.ones(self.n_slack)]
-        else:
-            self.var_min_all = self.u_min_all
-            self.var_max_all = self.u_max_all
+            self.var_min_all = np.r_[self.var_min_all, np.zeros(self.n_slack)]
+            self.var_max_all = np.r_[self.var_max_all, np.inf * np.ones(self.n_slack)]
 
-
+        # state constraints
+        A_x_lb = self.B_lag
+        A_x_ub = -self.B_lag
         if self.SOFT_ON:
-            A_cnst_1 = np.c_[self.B_lag, np.ones((self.n_p * self.n_x, 1))]
-            A_cnst_2 = np.c_[-self.B_lag, np.ones((self.n_p * self.n_x, 1))]
-        else:
-            A_cnst_1 = self.B_lag
-            A_cnst_2 = -self.B_lag
+            A_x_lb = np.c_[A_x_lb, np.ones((self.n_p * self.n_x, 1))]
+            A_x_ub = np.c_[A_x_ub, np.ones((self.n_p * self.n_x, 1))]
 
-        lbA_1 = self.x_min_all - self.A_lag.dot(self.x_0_rh)   # lower bound x constraint
-        lbA_2 = -self.x_max_all + self.A_lag.dot(self.x_0_rh)  # upper bound x constraint
+        lb_x_lb = self.x_min_all - self.A_lag.dot(self.x_0_rh)   # lower bound x constraint
+        lb_x_ub = -self.x_max_all + self.A_lag.dot(self.x_0_rh)  # upper bound x constraint
 
-        self.A_cnst = np.r_[A_cnst_1, A_cnst_2]
-        self.lbA = np.r_[lbA_1, lbA_2]
-        self.ubA = np.inf*np.ones_like(self.lbA)
+        ub_x_lb = np.inf*np.ones_like(lb_x_lb)  # lower bound x constraint
+        ub_x_ub = np.inf*np.ones_like(lb_x_ub)  # upper bound x constraint
+
+        # input variation constraints
+        A_du = np.kron(np.eye(self.n_c), np.eye(self.n_u)) - np.kron(np.eye(self.n_c, k=-1), np.eye(self.n_u))
+        if self.SOFT_ON:
+            A_du = np.c_[A_du, np.zeros((self.n_c * self.n_u, 1))]
+        lb_du = self.du_min_all + np.r_[self.u_minus1_rh, np.zeros((self.n_c - 1) * self.n_u)]
+        ub_du = self.du_max_all + np.r_[self.u_minus1_rh, np.zeros((self.n_c - 1) * self.n_u)]
+
+        self.A_cnst = np.r_[A_x_lb, A_x_ub, A_du]
+        self.lbA = np.r_[lb_x_lb, lb_x_ub, lb_du]
+        self.ubA = np.r_[ub_x_lb, ub_x_ub, ub_du]
 
         self.n_vars = self.n_u * self.n_c + self.n_slack
-        self.n_cnst = 2 * self.n_x * self.n_p
+        self.n_cnst = 2 * self.n_x * self.n_p + self.n_u * self.n_c
 
         self.problem = SQProblem(self.n_vars, self.n_cnst)  # n_vars, n_cnst
 
@@ -335,10 +363,17 @@ class MPCController:
         self.P_QP[:self.n_c*self.n_u, :self.n_c*self.n_u] = self.P_x + self.P_u + self.P_du
         self.p_QP[:self.n_c*self.n_u] = self.p_x + self.p_u + self.p_du
 
-        # constraints
-        lbA_1 = self.x_min_all - self.A_lag.dot(self.x_0_rh)   # lower bound constraint
-        lbA_2 = -self.x_max_all + self.A_lag.dot(self.x_0_rh)  # upper bound constraint
-        self.lbA = np.r_[lbA_1, lbA_2]
+        # Constraints update
+        lb_x_lb = self.x_min_all - self.A_lag.dot(self.x_0_rh)   # lower bound x constraint
+        lb_x_ub = -self.x_max_all + self.A_lag.dot(self.x_0_rh)  # upper bound x constraint
+        ub_x_lb = np.inf*np.ones_like(lb_x_lb)  # lower bound x constraint
+        ub_x_ub = np.inf*np.ones_like(lb_x_ub)  # upper bound x constraint
+
+        lb_du = self.du_min_all + np.r_[self.u_minus1_rh, np.zeros((self.n_c - 1) * self.n_u)]
+        ub_du = self.du_max_all + np.r_[self.u_minus1_rh, np.zeros((self.n_c - 1) * self.n_u)]
+
+        self.lbA = np.r_[lb_x_lb, lb_x_ub, lb_du]
+        self.ubA = np.r_[ub_x_lb, ub_x_ub, ub_du]
 
         if solve:
             self.solve()
@@ -357,7 +392,7 @@ class MPCController:
         u_MPC = self.res[:self.n_u]
 
         if update_u_minus1:
-            self.u_minus1 = u_MPC
+            self.u_minus1_rh = np.copy(u_MPC)
         return np.copy(u_MPC)
 
     def full_output(self):
@@ -391,31 +426,31 @@ if __name__ == '__main__':
     # Reference input and states
     p_ref = 4.0
     v_ref = 0.0
-    x_ref = np.array([p_ref, v_ref]) # reference state
+    x_ref = np.array([p_ref, v_ref])  # reference state
     u_ref = np.array([0.0])    # reference input
     u_minus1 = np.array([0.0])
 
     # Objective function
     Q_x = np.diag([1.0, 0.1])    # Quadratic cost for states x0, x1, ..., x_N-1
     Q_u = 1.0 * np.eye(1)        # Quadratic cost for u0, u1, ...., u_N-1
-    Q_du = 0.0 * np.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
+    Q_du = 200.0 * np.eye(1)       # Quadratic cost for Du0, Du1, ...., Du_N-1
 
     # Initial state
-    x_0 = np.array([0.0, 1.0])  # initial state
+    x_0 = np.array([0.0, 0.0])  # initial state
 
     # Prediction horizon
     n_p = 20
-    n_c = 10
+    n_c = 5
 
     # Constraints
-    x_min = np.array([-10, -0.6])
-    x_max = np.array([7.0, 0.6])
+    x_min = np.array([-10, -0.4])
+    x_max = np.array([7.0, 0.4])
 
     u_min = np.array([-1.2])
     u_max = np.array([1.2])
 
-    du_min = np.array([-2e-1])
-    du_max = np.array([2e-1])
+    du_min = np.array([-10e-1])
+    du_max = np.array([10e-1])
 
     K = MPCController(Ad, Bd, n_p=n_p, n_c=n_c, x_0=x_0, x_ref=x_ref, u_minus1=u_minus1,
                       Q_x=Q_x, Q_u=Q_u, Q_du=Q_du,
@@ -435,7 +470,7 @@ if __name__ == '__main__':
     for i in range(n_sim):
         u_MPC = K.output()
         x_step = Ad.dot(x_step) + Bd.dot(u_MPC)  # system step
-        K.update(x_step, x_ref=x_ref) # update with measurement
+        K.update(x_step, x_ref=x_ref)  # update with measurement
         K.solve()
         x_sim[i, :] = x_step
         u_sim[i, :] = u_MPC
@@ -451,6 +486,7 @@ if __name__ == '__main__':
     axes[1].plot(t_sim, x_ref[1] * np.ones(np.shape(t_sim)), "r--", label="vref")
     axes[1].set_title("Velocity (m/s)")
 
+    #axes[2].step(t_sim, u_sim[:, 0], where="post", label="u")
     axes[2].plot(t_sim, u_sim[:, 0], label="u")
     axes[2].plot(t_sim, u_ref * np.ones(np.shape(t_sim)), "r--", label="uref")
     axes[2].set_title("Force (N)")
