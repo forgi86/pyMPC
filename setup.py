@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pyMPC',
-    version='0.1',
+    version='0.1.1',
     url='https://github.com/forgi86/pyMPC.git',
     author='Marco Forgione',
     author_email='marco.forgione1986@gmail.com',
