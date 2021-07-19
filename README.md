@@ -16,6 +16,16 @@ pyMPC requires the following packages:
 
 ## Installation
 
+### Stable version from PyPI
+
+Run the command 
+
+```
+pip install python-mpc
+```
+This will install the [stable version](https://pypi.org/project/python-mpc/0.1.1/) of pyMPC from the PyPI package repository.
+
+### Latest version from GitHub
 1. Get a local copy the pyMPC project. For instance, run 
 ```
 git clone https://github.com/forgi86/pyMPC.git
@@ -26,7 +36,7 @@ in a terminal to clone the project using git. Alternatively, download the zipped
 ```
 pip install -e .
 ```
-in the pyMPC project root folder (where the file setup.py is located).
+in the pyMPC project root folder (where the file setup.py is located). 
 
 ## Supported platforms
 
